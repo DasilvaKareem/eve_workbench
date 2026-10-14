@@ -8,5 +8,7 @@ dist
 .iwsdk
 .cache
 artifacts
-eve-backend
+eve-backend/*
+!eve-backend/shared
+!eve-backend/shared/**
 game

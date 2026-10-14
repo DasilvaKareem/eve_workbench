@@ -7,6 +7,10 @@ claiming to track your eyes.
 
 ## Using the console
 
+- **Dictate:** records a message from the headset microphone. Choose **Stop mic**,
+  review the text in **Reply**, then choose **Send voice** or **Discard**.
+  Allow microphone access with **Enable microphone** before entering XR; see
+  [voice dictation](voice-dictation.md).
 - **Hands:** choose **Aim: Hands**. Reach out and push through a button's surface
   to poke it, or point and pinch from farther away.
 - **Controllers:** point a controller at a button and press/release the trigger.
@@ -22,6 +26,13 @@ claiming to track your eyes.
 - **Previous / Next page:** reads a complete response without shrinking the
   text or discarding its tail. The page indicator shows your position. A new
   assistant message begins on page one.
+- **Voice on / Voice off:** reads new replies aloud using the browser's speech
+  service, or mutes playback. Choose a device voice in the desktop controls.
+  A browser without speech support reports that it is unavailable.
+- **Eve panels:** opens model-authored text, tables, metrics, and chart panels
+  beside the console. Use Previous/Next page for full content and chart data,
+  Previous/Next panel to switch panels, and Place in front to recenter. Follow-up
+  buttons send their displayed action as an ordinary request to Eve.
 
 Buttons brighten on hover and change color while pressed. Controls that are
 unavailable, such as sending a second task while Eve is working, are dimmed and
@@ -50,7 +61,7 @@ when Eve starts browsing. Use **Watch browser** to reopen it, **Place in front**
 to reposition it, and **Hide browser** to stop watching. Its website image is
 read-only; direct touch/rays operate the panel controls.
 
-Frontend type checking, the production build, and 31 tests pass, including
+Frontend type checking, the production build, and 52 tests pass, including
 pagination coverage for long replies, long tokens, emoji, and paragraph breaks.
 The SDK's isolated UI-render command could not run because no managed runtime is
 available in this restricted execution environment. Physical interaction,

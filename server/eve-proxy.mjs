@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const COOKIE = 'eve-workbench';
 const MAX_BODY = 64 * 1024;
+const MAX_AUDIO_BODY = 2_100_000;
 const SESSION_ROUTE = /^\/session(?:\/[A-Za-z0-9_-]{1,200}(?:\/(?:stream|cancel|reset))?)?$/;
 
 function json(body, status = 200, headers = {}) {
@@ -76,10 +77,11 @@ export async function handleEveRequest(request, env = process.env, fetcher = fet
   }
 
   const isStream = path.endsWith('/stream');
+  const isTranscription = path === '/transcribe';
   const isBrowser = /^\/session\/[A-Za-z0-9_-]{1,200}\/browser\/frame$/.test(path);
   const isSession = SESSION_ROUTE.test(path);
   const allowed = request.method === 'GET' ? (isBrowser || path === '/health' || path === '/info' || (isSession && isStream))
-    : request.method === 'POST' && isSession && !isStream;
+    : request.method === 'POST' && ((isSession && !isStream) || isTranscription);
   if (!allowed) return json({ error: 'Unknown Eve route.' }, 404);
 
   let target;
@@ -87,7 +89,7 @@ export async function handleEveRequest(request, env = process.env, fetcher = fet
     target = new URL(backend);
     if (target.username || target.password || target.search || target.hash) throw new Error();
     if (target.protocol !== 'https:' && !(target.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(target.hostname))) throw new Error();
-    target.pathname = `${target.pathname.replace(/\/$/, '')}${isBrowser ? `/workbench/browser/${path.split('/')[2]}/frame` : `/eve/v1${path}`}`;
+    target.pathname = `${target.pathname.replace(/\/$/, '')}${isTranscription ? '/workbench/transcribe' : isBrowser ? `/workbench/browser/${path.split('/')[2]}/frame` : `/eve/v1${path}`}`;
     if (isStream) {
       const startIndex = url.searchParams.get('startIndex');
       if (startIndex !== null) {
@@ -101,16 +103,17 @@ export async function handleEveRequest(request, env = process.env, fetcher = fet
 
   let body;
   if (request.method === 'POST') {
-    if (Number(request.headers.get('content-length')) > MAX_BODY) return json({ error: 'Message too large.' }, 413);
+    const limit = isTranscription ? MAX_AUDIO_BODY : MAX_BODY;
+    if (Number(request.headers.get('content-length')) > limit) return json({ error: 'Message too large.' }, 413);
     body = await request.text();
-    if (Buffer.byteLength(body) > MAX_BODY) return json({ error: 'Message too large.' }, 413);
+    if (Buffer.byteLength(body) > limit) return json({ error: 'Message too large.' }, 413);
     try { JSON.parse(body || '{}'); } catch { return json({ error: 'Expected JSON.' }, 400); }
   }
 
   const headers = { accept: isStream ? 'application/x-ndjson' : 'application/json' };
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (env.EVE_API_KEY) headers.authorization = `Bearer ${env.EVE_API_KEY}`;
-  const timeout = AbortSignal.timeout(isStream ? 270_000 : 20_000);
+  const timeout = AbortSignal.timeout(isStream ? 270_000 : isTranscription ? 60_000 : 20_000);
   try {
     const response = await fetcher(target, { method: request.method, headers, body,
       redirect: 'manual', signal: AbortSignal.any([request.signal, timeout]) });
@@ -129,4 +132,4 @@ export async function handleEveRequest(request, env = process.env, fetcher = fet
   }
 }
 
-export { MAX_BODY };
+export { MAX_BODY, MAX_AUDIO_BODY };

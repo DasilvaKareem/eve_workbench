@@ -3,6 +3,11 @@ import { VisibilityState } from '@iwsdk/core';
 import { eve, type EveState } from './eve-client.js';
 import { mountTaskDashboard } from './eve-task-dashboard.js';
 import { mountBrowserPanel } from './eve-browser-panel.js';
+import { mountGeneratedPanels } from './eve-generated-panels.js';
+import { mountVoiceControls } from './eve-voice-controls.js';
+import { eveVoice } from './eve-voice.js';
+import { dictation } from './eve-dictation.js';
+import { mountDictationControls } from './eve-dictation-controls.js';
 import './eve-workbench.css';
 
 const icons = {
@@ -26,11 +31,13 @@ export function mountWorkbench(world: World) {
     <section class="eve-console" aria-label="Eve assistant">
       <header class="eve-console-header"><div class="eve-agent-icon">e</div><div><h2>Eve</h2><p class="eve-status" role="status">Connecting</p></div><button class="eve-icon-button eve-new" title="New conversation" aria-label="New conversation" type="button">${icon('plus')}</button><button class="eve-icon-button eve-collapse" title="Minimize chat" aria-label="Minimize chat" aria-expanded="true" type="button">−</button></header>
       <div class="eve-console-content">
+        <div class="eve-voice-controls" aria-label="Spoken replies"></div>
         <div class="eve-messages" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text"></div>
         <div class="eve-notice" role="status" hidden></div>
         <form class="eve-unlock" hidden><label for="eve-access">Unlock your private workspace</label><div><input id="eve-access" type="password" autocomplete="current-password" placeholder="Workspace access code" required><button type="submit">Unlock</button></div></form>
         <div class="eve-inputs"></div>
         <details class="eve-task-board"><summary>Task board</summary><ul></ul></details>
+        <details class="eve-generated-board"><summary>Eve panels</summary></details>
         <details class="eve-browser-board"><summary>Watch Eve’s browser</summary></details>
         <div class="eve-suggestions"><button type="button" data-prompt="Help me plan my next project. Ask me what I want to build.">Plan a project ${icon('arrow')}</button><button type="button" data-prompt="Show my task board and suggest what I should focus on next.">Find my focus ${icon('arrow')}</button></div>
         <form class="eve-composer"><label class="eve-sr-only" for="eve-message">Message Eve</label><textarea id="eve-message" rows="2" maxlength="12000" placeholder="What are we working on?" required></textarea><div class="eve-composer-footer"><span>Connected to your Eve agent</span><button class="eve-mic eve-icon-button" type="button" title="Dictate a message" aria-label="Dictate a message" hidden>${icon('mic')}</button><button class="eve-send" type="submit" title="Send message" aria-label="Send message">${icon('arrow')}</button><button class="eve-stop eve-icon-button" type="button" title="Cancel task" aria-label="Cancel task" hidden>${icon('stop')}</button></div></form>
@@ -119,12 +126,15 @@ export function mountWorkbench(world: World) {
   const unsubscribe = eve.subscribe(render);
   const stopDashboard = mountTaskDashboard(find<HTMLDetailsElement>('.eve-task-board'));
   const stopBrowser = mountBrowserPanel(find<HTMLDetailsElement>('.eve-browser-board'), world);
+  const stopPanels = mountGeneratedPanels(find<HTMLDetailsElement>('.eve-generated-board'));
+  const stopVoice = mountVoiceControls(find('.eve-voice-controls'));
+  const stopDictation = mountDictationControls(shell, textarea);
   textarea.addEventListener('input', () => { find<HTMLButtonElement>('.eve-send').disabled = !textarea.value.trim() || !['ready', 'waiting'].includes(eve.state.phase); });
   composer.addEventListener('submit', event => {
     event.preventDefault();
     const text = textarea.value.trim();
     if (!text || !['ready', 'waiting'].includes(eve.state.phase)) return;
-    textarea.value = ''; void eve.send(text);
+    textarea.value = ''; dictation.cancel(); void eve.send(text);
   });
   textarea.addEventListener('keydown', event => {
     if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); composer.requestSubmit(); }
@@ -138,7 +148,7 @@ export function mountWorkbench(world: World) {
     const value = input.value; input.value = ''; void eve.unlock(value);
   });
   find('.eve-new').addEventListener('click', () => void eve.newConversation());
-  find('.eve-stop').addEventListener('click', () => void eve.cancel());
+  find('.eve-stop').addEventListener('click', () => { eveVoice.stop(); void eve.cancel(); });
   find('.eve-retry').addEventListener('click', () => void eve.connect());
   for (const button of shell.querySelectorAll<HTMLButtonElement>('[data-prompt]')) button.addEventListener('click', () => void eve.send(button.dataset.prompt!));
   find('.eve-collapse').addEventListener('click', () => {
@@ -157,5 +167,5 @@ export function mountWorkbench(world: World) {
   });
   if (!world.xrEnabled) { launch.disabled = true; launch.title = 'This browser does not currently offer an immersive XR session.'; }
   void eve.connect();
-  return () => { unsubscribe(); stopDashboard(); stopBrowser(); stopVisibility(); shell.remove(); };
+  return () => { unsubscribe(); stopDashboard(); stopBrowser(); stopPanels(); stopVoice(); stopDictation(); eveVoice.stop(); stopVisibility(); shell.remove(); };
 }

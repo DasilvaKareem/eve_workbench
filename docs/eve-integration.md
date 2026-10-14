@@ -139,8 +139,21 @@ limit; clients reconnect from the absolute event count.
   `task_board` result refreshes the list, Progress chart, and Task map while the
   turn is still running. Charts consume complete tool results, not partial tool
   arguments. The backend instructions describe these controls to Claude.
-- Arbitrary generated panels and spoken audio are not connected. Claude cannot
-  select a panel for the user or observe which view is open.
+- The `workbench_panel` tool creates, replaces, lists, and removes durable panels.
+  Its complete snapshots stream to the browser and native **Eve panels** surface.
+  Panels compose text, metrics, tables, bar/line charts, and up to three follow-up
+  prompt buttons. Six panels are retained per conversation. Renderers validate
+  the same bounded data format and never execute model-authored markup or code.
+  Chart data and long text remain fully readable through native page controls.
+- **Voice on** enables browser/device speech synthesis for new assistant text.
+  Sentences are queued before the turn finishes; final fragments flush at message
+  completion. Voice off, task cancellation, new messages, and conversation resets
+  stop playback. Restored history remains silent. The browser offers a voice
+  selector and Stop reading. Quality and availability depend on the device's
+  speech service; this does not provision a neural TTS provider or require a new
+  API key. See [SpeechSynthesis](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesis).
+  Claude knows these controls through its backend instructions but cannot hear
+  playback, select the user's voice, or observe the selected panel.
 - **Watch Eve’s browser** on desktop and **Watch browser** in XR show the real
   sandbox browser with a recent-action feed. This needs the Vercel sandbox
   backend, not local just-bash. See [browser viewing](browser-watch.md) for setup,
@@ -153,12 +166,18 @@ limit; clients reconnect from the absolute event count.
 ## Verification
 
 On 2026-10-14, frontend and backend type checks, both production builds, and all
-32 tests passed. The tests cover stream deltas and UTF-8 boundaries,
+52 tests passed. The tests cover stream deltas and UTF-8 boundaries,
 reconnect cursors, task/approval projection, proxy credentials, access cookies,
 origin checks, the Node HTTP adapter, chart rendering, native panel parsing,
 browser frame authentication/session isolation, viewer lifecycle, and tool results.
 An integration test holds a fixture stream open and verifies that text and
 task-chart data cross the proxy and reach client subscribers before completion.
+The new speech and generated-panel implementation adds tests for fresh versus
+replayed replies, sentence buffering, stopping, unavailable speech, panel data
+validation, chart rendering, and native template parsing. A held-open stream
+test also verifies speech sentences and generated panels through the proxy.
+These additions pass local builds; production activation and physical audio/UI
+verification have not been established for these additions.
 The frontend and backend are deployed to the production URLs above. Backend
 health, workspace authentication, model configuration, and a live Sonnet 5.5
 reply have been verified. The browser viewer is deployed, but its runtime has

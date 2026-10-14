@@ -81,6 +81,21 @@ test('cross-origin writes are rejected even with a valid cookie', async () => {
   assert.equal(response.status, 403);
 });
 
+test('audio transcription uses the same private gate and a bounded JSON upload', async () => {
+  const body = JSON.stringify({ audio: 'a'.repeat(100_000), mediaType: 'audio/webm', durationMs: 1000 });
+  const locked = await handleEveRequest(request('/transcribe', { method: 'POST', body }), env, () => assert.fail('must unlock first'));
+  assert.equal(locked.status, 401);
+  const response = await handleEveRequest(request('/transcribe', { method: 'POST', body, headers: { cookie: await cookie() } }), env, async (url, options) => {
+    assert.equal(url.href, 'https://agent.example/workbench/transcribe');
+    assert.equal(options.headers.authorization, `Bearer ${env.EVE_API_KEY}`);
+    assert.equal(options.body, body);
+    return Response.json({ text: 'Hello Eve.' });
+  });
+  assert.equal(response.status, 200);
+  const huge = await handleEveRequest(request('/transcribe', { method: 'POST', body: 'x'.repeat(2_100_001), headers: { cookie: await cookie() } }), env, () => assert.fail('must bound upload first'));
+  assert.equal(huge.status, 413);
+});
+
 test('NDJSON is streamed intact with cursor and version headers', async () => {
   const output = '{"type":"message.appended","data":{"messageDelta":"hello"}}\n';
   const response = await handleEveRequest(request('/session/wrun_test/stream?startIndex=8&unsafe=discard', { headers: { cookie: await cookie() } }), env, async (url) => {

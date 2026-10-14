@@ -1,4 +1,6 @@
 export type Phase = 'connecting' | 'setup' | 'locked' | 'ready' | 'working' | 'waiting' | 'error';
+import { parseWorkbenchPanels, type WorkbenchPanel } from '../shared/workbench-panels.ts';
+
 export interface Message { id: string; role: 'user' | 'assistant'; text: string; pending?: boolean }
 export interface InputRequest { id: string; title: string; options: { id: string; label: string }[] }
 export interface BrowserAction { id: string; tool: string; status: 'running' | 'completed' | 'failed' | 'cancelled' }
@@ -7,6 +9,7 @@ export interface EveState {
   activity: string; error: string | null; inputs: InputRequest[]; authRequired: boolean;
   tasks: { id: string; title: string; status: 'todo' | 'in_progress' | 'done' }[];
   browserActions: BrowserAction[];
+  panels: WorkbenchPanel[];
 }
 export interface EveEvent { type: string; data: Record<string, any>; meta?: { id?: string; at?: string } }
 
@@ -28,8 +31,10 @@ export class EveError extends Error {
 
 /** A single session store shared by the desktop UI and the XR console. */
 export class EveClient {
-  state: EveState = { phase: 'connecting', sessionId: null, messages: [], activity: 'Checking connection', error: null, inputs: [], authRequired: false, tasks: [], browserActions: [] };
+  state: EveState = { phase: 'connecting', sessionId: null, messages: [], activity: 'Checking connection', error: null, inputs: [], authRequired: false, tasks: [], browserActions: [], panels: [] };
   private listeners = new Set<(state: EveState) => void>();
+  private eventListeners = new Set<(event: EveEvent, live: boolean) => void>();
+  private liveTurns = new Set<string>();
   private streamController: AbortController | null = null;
   private requestController = new AbortController();
   private cursor = 0;
@@ -47,6 +52,11 @@ export class EveClient {
   }
 
   private emit() { for (const listener of this.listeners) listener(this.state); }
+  /** Live means this tab submitted the turn; replayed history stays silent. */
+  subscribeEvents(listener: (event: EveEvent, live: boolean) => void): () => void {
+    this.eventListeners.add(listener);
+    return () => this.eventListeners.delete(listener);
+  }
   private patch(value: Partial<EveState>) { Object.assign(this.state, value); this.emit(); }
 
   private async request(path: string, options: RequestInit = {}) {
@@ -132,6 +142,7 @@ export class EveClient {
     this.sendInFlight = true;
     try {
       await this.postWithRetry(`/session/${this.state.sessionId}`, { inputResponses: [{ requestId, optionId }] });
+      if (this.activeTurn) this.liveTurns.add(this.activeTurn);
       this.state.inputs = this.state.inputs.filter(input => input.id !== requestId);
       this.patch({ phase: 'working', activity: 'Continuing your task', error: null });
     } catch (error) { this.fail(error); }
@@ -158,7 +169,8 @@ export class EveClient {
     this.streamController?.abort(); this.streamController = null;
     this.cursor = 0; this.seen.clear(); this.activeTurn = null; this.terminal = false;
     try { localStorage.removeItem(SESSION_KEY); } catch { /* Optional persistence. */ }
-    this.patch({ sessionId: null, messages: [], inputs: [], tasks: [], browserActions: [], phase: 'ready', activity: 'A fresh conversation', error: null });
+    this.liveTurns.clear();
+    this.patch({ sessionId: null, messages: [], inputs: [], tasks: [], browserActions: [], panels: [], phase: 'ready', activity: 'A fresh conversation', error: null });
   }
 
   private follow() {
@@ -229,7 +241,7 @@ export class EveClient {
         const text = typeof data.message === 'string' ? data.message : '';
         if (text) {
           const pending = this.state.messages.find(message => message.role === 'user' && message.pending && message.text === text);
-          if (pending) pending.pending = false;
+          if (pending) { pending.pending = false; this.liveTurns.add(data.turnId); }
           else this.state.messages.push({ id: event.meta?.id || crypto.randomUUID(), role: 'user', text });
         }
         break;
@@ -263,6 +275,10 @@ export class EveClient {
         if (data.status === 'completed' && result?.toolName === 'task_board' && Array.isArray(result.output?.tasks)) {
           this.state.tasks = result.output.tasks.filter((task: any) => typeof task.id === 'string'
             && typeof task.title === 'string' && ['todo', 'in_progress', 'done'].includes(task.status));
+        }
+        if (data.status === 'completed' && !result?.isError && result?.toolName === 'workbench_panel') {
+          const panels = parseWorkbenchPanels(result.output?.panels);
+          if (panels) this.state.panels = panels;
         }
         break;
       }
@@ -302,6 +318,9 @@ export class EveClient {
         Object.assign(this.state, { phase: 'error', activity: 'Conversation ended', error: 'Start a new conversation to continue.' }); break;
     }
     this.emit();
+    const live = this.liveTurns.has(data.turnId || this.activeTurn || '');
+    for (const listener of this.eventListeners) listener(event, live);
+    if (['session.waiting', 'turn.cancelled', 'turn.failed', 'session.failed', 'session.completed'].includes(event.type)) this.liveTurns.clear();
   }
 
   private fail(error: unknown) {
@@ -309,7 +328,7 @@ export class EveClient {
     this.patch({ phase: error instanceof EveError && error.status === 401 ? 'locked' : 'error', error: message, activity: 'Connection needs attention' });
   }
 
-  dispose() { this.streamController?.abort(); this.requestController.abort(); this.listeners.clear(); }
+  dispose() { this.streamController?.abort(); this.requestController.abort(); this.listeners.clear(); this.eventListeners.clear(); }
 }
 
 export const eve = new EveClient();

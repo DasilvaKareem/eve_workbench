@@ -12,3 +12,36 @@
 .eve-browser-url { overflow-wrap: anywhere; max-height: 3em; overflow: auto; }
 .eve-browser-actions { padding-left: 20px; }
 .eve-browser-caption, .eve-browser-frame-time { opacity: .75; }
+
+.eve-voice-controls { display:flex; flex-wrap:wrap; align-items:center; gap:7px; padding:10px 20px; border-bottom:1px solid #ffffff12; font-size:11px; }
+.eve-console-content { max-height:calc(100dvh - 230px); overflow-y:auto; scrollbar-width:thin; scrollbar-color:#576260 transparent; }
+.eve-voice-controls button,.eve-voice-controls select,.eve-panel-tabs button,.eve-panel-actions button { border:1px solid #60756a; border-radius:5px; background:#29352f; color:#e1efd7; padding:7px 9px; font-size:11px; }
+.eve-voice-controls select { width:100%; min-width:0; }
+.eve-voice-controls select:focus-visible,.eve-panel-tabs button:focus-visible,.eve-panel-actions button:focus-visible { outline:2px solid #d6f29a; outline-offset:2px; }
+.eve-voice-controls button[aria-pressed=true],.eve-panel-tabs button[aria-pressed=true] { background:#d6f29a; color:#182117; }
+.eve-voice-status { color:#b6c7bd; font-size:10px; line-height:1.5; }
+.eve-generated-board { margin:0 20px 14px; border:1px solid #ffffff1b; border-radius:6px; font-size:11px; }
+.eve-generated-board>summary { padding:10px 12px; cursor:pointer; color:#d6f29a; }
+.eve-generated-board[open] { max-height:48vh; overflow:auto; }
+.eve-panel-tabs { display:flex; flex-wrap:wrap; gap:6px; padding:0 10px 10px; }
+.eve-panel-tabs button { max-width:100%; overflow-wrap:anywhere; text-align:left; }
+.eve-generated-content { padding:0 10px; line-height:1.6; overflow-wrap:anywhere; }
+.eve-generated-content h3 { font-size:14px; font-weight:500; }
+.eve-panel-text { white-space:pre-wrap; }
+.eve-panel-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.eve-panel-metrics>div { padding:10px; background:#29352f; border-radius:7px; }
+.eve-panel-metrics dt { color:#b6c7bd; font-size:10px; }
+.eve-panel-metrics dd { margin:5px 0 0; font-size:17px; }
+.eve-panel-table { overflow:auto; margin:12px 0; }
+.eve-panel-table table { width:100%; border-collapse:collapse; font-size:11px; }
+.eve-panel-table th,.eve-panel-table td { border-bottom:1px solid #60756a; text-align:left; padding:8px; vertical-align:top; min-width:65px; }
+.eve-panel-table th { color:#d6f29a; }
+.eve-generated-chart { margin:12px 0; }
+.eve-generated-chart canvas { display:block; width:100%!important; height:auto!important; aspect-ratio:1104/540; }
+.eve-generated-chart summary { cursor:pointer; color:#b6c7bd; }
+.eve-generated-chart pre { white-space:pre-wrap; font-family:inherit; font-size:11px; line-height:1.6; }
+.eve-panel-actions { display:flex; flex-wrap:wrap; gap:7px; padding:10px 0; }
+.eve-panel-notice { margin:0 10px 10px; color:#b6c7bd; font-size:10px; }
+.eve-panel-notice:empty { display:none; }
+.eve-dictation-status { padding: 0 8px 8px; color: #d6f29a; font-size: 12px; line-height: 1.5; }
+.eve-mic[aria-pressed="true"] { background: #793d35; color: #fff; }

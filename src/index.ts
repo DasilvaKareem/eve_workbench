@@ -21,6 +21,7 @@ import { PanelSystem } from './panel.js';
 import { RobotSystem } from './robot.js';
 import { EveConsoleSystem } from './eve-console-system.js';
 import { EveBrowserSystem } from './eve-browser-system.js';
+import { EveGeneratedSystem } from './eve-generated-system.js';
 import { mountWorkbench } from './eve-workbench.js';
 
 World.create(
@@ -32,6 +33,7 @@ World.create(
   world.registerSystem(ControllerInputSystem);
   world.registerSystem(EveConsoleSystem);
   world.registerSystem(EveBrowserSystem);
+  world.registerSystem(EveGeneratedSystem);
   mountWorkbench(world);
 }).catch((error) => {
   console.error('The XR workspace could not start:', error);

@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { handleEveRequest, MAX_BODY } from './eve-proxy.mjs';
+import { handleEveRequest, MAX_BODY, MAX_AUDIO_BODY } from './eve-proxy.mjs';
 
 /** Share the same Web Request handler between Vite and Vercel Node Functions. */
 export async function serveEveRequest(req, res, env = process.env) {
@@ -7,11 +7,19 @@ export async function serveEveRequest(req, res, env = process.env) {
   res.on('close', () => controller.abort());
   req.on('aborted', () => controller.abort());
   try {
+    const protocol = env.VERCEL || req.socket?.encrypted || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const url = new URL(`${protocol}://${req.headers.host || 'localhost'}${req.url}`);
+    const routedPath = url.searchParams.get('__eve_path');
+    if (routedPath !== null) {
+      url.pathname = `/api/eve${routedPath ? `/${routedPath}` : ''}`;
+      url.searchParams.delete('__eve_path');
+    }
+    const limit = url.pathname === '/api/eve/transcribe' ? MAX_AUDIO_BODY : MAX_BODY;
     let body;
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       if (req.body !== undefined) {
         body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-        if (Buffer.byteLength(body) > MAX_BODY) {
+        if (Buffer.byteLength(body) > limit) {
           res.writeHead(413, { 'content-type': 'application/json' });
           res.end(JSON.stringify({ error: 'Message too large.' }));
           return;
@@ -21,7 +29,7 @@ export async function serveEveRequest(req, res, env = process.env) {
         let length = 0;
         for await (const chunk of req) {
           length += chunk.length;
-          if (length > MAX_BODY) {
+          if (length > limit) {
             res.writeHead(413, { 'content-type': 'application/json' });
             res.end(JSON.stringify({ error: 'Message too large.' }));
             return;
@@ -30,13 +38,6 @@ export async function serveEveRequest(req, res, env = process.env) {
         }
         body = Buffer.concat(chunks);
       }
-    }
-    const protocol = env.VERCEL || req.socket?.encrypted || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-    const url = new URL(`${protocol}://${req.headers.host || 'localhost'}${req.url}`);
-    const routedPath = url.searchParams.get('__eve_path');
-    if (routedPath !== null) {
-      url.pathname = `/api/eve${routedPath ? `/${routedPath}` : ''}`;
-      url.searchParams.delete('__eve_path');
     }
     const request = new Request(url, {
       method: req.method, headers: req.headers, body, signal: controller.signal,

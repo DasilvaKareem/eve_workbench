@@ -64,13 +64,22 @@
     <button id="eve-xr-next" class="button">What's next?</button>
   </div>
   <div class="row">
+    <button id="eve-xr-voice" class="button"><span id="eve-xr-voice-label">Dictate</span></button>
+    <button id="eve-xr-voice-send" class="button">Send voice</button>
+    <button id="eve-xr-voice-discard" class="button">Discard</button>
+  </div>
+  <div id="eve-xr-voice-status" class="status">Dictate a message - Review before sending</div>
+  <div class="row">
     <button id="eve-xr-range" class="button utility"><span id="eve-xr-range-label">Bring closer</span></button>
     <button id="eve-xr-recenter" class="button utility">Place in front</button>
     <button id="eve-xr-aim" class="button utility"><span id="eve-xr-aim-label">Aim: Hands</span></button>
   </div>
   <div class="row">
-    <button id="eve-xr-browser" class="button wide">Watch browser</button>
+    <button id="eve-xr-browser" class="button utility">Watch browser</button>
+    <button id="eve-xr-panels" class="button utility">Eve panels</button>
+    <button id="eve-xr-speech" class="button utility"><span id="eve-xr-speech-label">Voice off</span></button>
   </div>
+  <div id="eve-xr-speech-status" class="hint">Read Eve's replies aloud.</div>
   <div class="row">
     <button id="eve-xr-cancel" class="button wide">Cancel task</button>
     <button id="eve-xr-exit" class="button wide">Back to browser</button>

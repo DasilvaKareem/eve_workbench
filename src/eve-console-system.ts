@@ -4,6 +4,9 @@ import { paginatePanelText } from './eve-panel-content.js';
 import { taskListText, taskSnapshot } from './eve-task-charts.js';
 import type { TaskChartSurface } from './eve-task-chart-surface.js';
 import { showSandboxBrowser } from './eve-browser-visibility.js';
+import { showGeneratedPanels } from './eve-generated-visibility.js';
+import { eveVoice } from './eve-voice.js';
+import { dictation } from './eve-dictation.js';
 
 /** Code-owned console, independent of scene composition and the editor's assets. */
 export class EveConsoleSystem extends createSystem({}) {
@@ -28,6 +31,8 @@ export class EveConsoleSystem extends createSystem({}) {
       const status = panel.requireElementById<UIKit.Text>('eve-xr-status');
       const response = panel.requireElementById<UIKit.Text>('eve-xr-response');
       const pageLabel = panel.requireElementById<UIKit.Text>('eve-xr-page');
+      const voiceStatus = panel.requireElementById<UIKit.Text>('eve-xr-voice-status');
+      const voiceLabel = panel.requireElementById<UIKit.Text>('eve-xr-voice-label');
       const replyView = panel.requireElementById('eve-xr-reply-view');
       const chartView = panel.requireElementById('eve-xr-chart-view');
       const chartImage = panel.requireElementById<UIKit.Image>('eve-xr-task-chart');
@@ -86,7 +91,13 @@ export class EveConsoleSystem extends createSystem({}) {
             chartSummary.setProperties({ text: snapshot.summary });
           } else if (!chartFailed) void loadChart();
         } else {
-          const text = view === 'list' ? taskListText(eve.state.tasks) : replyText;
+          const voice = dictation.state;
+          const voiceText = voice.phase === 'review' ? `Voice draft — not sent\n\n${voice.draft}\n\nChoose Send voice to send this to Eve, or Discard.`
+            : voice.phase === 'recording' ? 'Listening. Speak your message, then choose Stop mic. Recording stops after 45 seconds.'
+            : voice.phase === 'transcribing' ? 'Turning your recording into text. Your message has not been sent to Eve.'
+            : voice.phase === 'preparing' ? 'Allow microphone access. If the permission prompt is not visible, choose Back to browser and Enable microphone first.'
+            : voice.phase === 'error' ? voice.error : null;
+          const text = view === 'list' ? taskListText(eve.state.tasks) : voiceText || replyText;
           if (text !== lastText) { pages = paginatePanelText(text); lastText = text; }
           pageCount = pages.length;
           page = Math.max(0, Math.min(page, pageCount - 1));
@@ -127,15 +138,36 @@ export class EveConsoleSystem extends createSystem({}) {
       };
       const canSend = () => ['ready', 'waiting'].includes(eve.state.phase);
       const selectView = (next: typeof view) => { view = next; page = 0; chartFailed = false; showPage(); };
+      bind('eve-xr-voice', () => {
+        selectView('reply');
+        if (dictation.state.phase === 'recording') dictation.stop();
+        else { eveVoice.stop(); void dictation.start(); }
+      }, () => (canSend() || dictation.state.phase === 'recording') && dictation.state.supported && !['preparing', 'transcribing'].includes(dictation.state.phase),
+      () => dictation.state.phase === 'recording');
+      bind('eve-xr-voice-send', () => {
+        const text = dictation.state.draft;
+        dictation.cancel();
+        selectView('reply');
+        void eve.send(text);
+      }, () => canSend() && dictation.state.phase === 'review' && Boolean(dictation.state.draft.trim()));
+      bind('eve-xr-voice-discard', () => dictation.cancel(), () => dictation.state.phase !== 'idle' || dictation.state.micReady);
       bind('eve-xr-view-reply', () => selectView('reply'), () => true, () => view === 'reply');
       bind('eve-xr-view-map', () => selectView('map'), () => true, () => view === 'map');
       bind('eve-xr-view-progress', () => selectView('progress'), () => true, () => view === 'progress');
       bind('eve-xr-plan', () => void eve.send('Help me plan my work. Ask me what I want to accomplish.'), canSend);
       bind('eve-xr-tasks', () => selectView('list'));
       bind('eve-xr-next', () => void eve.send('Based on our conversation and task board, suggest my next concrete step.'), canSend);
-      bind('eve-xr-cancel', () => void eve.cancel(), () => ['working', 'waiting'].includes(eve.state.phase));
+      bind('eve-xr-cancel', () => { eveVoice.stop(); void eve.cancel(); }, () => ['working', 'waiting'].includes(eve.state.phase));
       bind('eve-xr-exit', () => { void this.world.exitXR(); });
       bind('eve-xr-browser', () => showSandboxBrowser());
+      bind('eve-xr-panels', () => showGeneratedPanels());
+      bind('eve-xr-speech', () => eveVoice.setEnabled(!eveVoice.state.enabled), () => eveVoice.state.supported, () => eveVoice.state.enabled);
+      const stopReplyVoice = eveVoice.subscribe(state => {
+        panel.requireElementById<UIKit.Text>('eve-xr-speech-label').setProperties({ text: state.enabled ? 'Voice on' : 'Voice off' });
+        panel.requireElementById<UIKit.Text>('eve-xr-speech-status').setProperties({ text: state.error || (!state.supported ? 'Speech unavailable in this browser.' : state.speaking ? 'Reading reply aloud' : 'Voice reads new replies. Choose a voice in the browser.') });
+        refresh();
+      });
+      this.cleanupFuncs.push(stopReplyVoice);
       bind('eve-xr-previous', () => { page--; showPage(); }, () => page > 0);
       bind('eve-xr-next-page', () => { page++; showPage(); }, () => page < pageCount - 1);
       bind('eve-xr-range', () => {
@@ -161,11 +193,32 @@ export class EveConsoleSystem extends createSystem({}) {
         replyText = text;
         showPage();
       });
-      const stopVisibility = this.world.visibilityState.subscribe(value => {
-        if (value === VisibilityState.NonImmersive) panel.visible = false;
-        else this.pendingPlacement = true;
+      let voicePhase = dictation.state.phase;
+      const stopVoice = dictation.subscribe(state => {
+        voiceLabel.setProperties({ text: state.phase === 'recording' ? 'Stop mic' : 'Dictate' });
+        voiceStatus.setProperties({ text: !state.supported ? 'Microphone recording is unavailable in this browser.'
+          : state.phase === 'recording' ? 'MIC ON - Tap Stop mic when finished.'
+          : state.phase === 'transcribing' ? 'Transcribing your recording...'
+          : state.phase === 'review' ? 'Review your voice draft, then Send voice.'
+          : state.phase === 'preparing' ? 'Waiting for microphone permission...'
+          : state.phase === 'error' ? 'Microphone needs attention. See Reply.'
+          : 'Dictate a message - Review before sending' });
+        if (state.phase !== voicePhase && ['review', 'error'].includes(state.phase)) { view = 'reply'; page = 0; }
+        voicePhase = state.phase;
+        showPage();
       });
-      this.cleanupFuncs.push(stopState, stopVisibility, () => {
+      let wasImmersive = false;
+      const stopVisibility = this.world.visibilityState.subscribe(value => {
+        if (value === VisibilityState.NonImmersive) {
+          panel.visible = false;
+          if (wasImmersive && ['preparing', 'recording'].includes(dictation.state.phase)) dictation.cancel();
+        }
+        else this.pendingPlacement = true;
+        if (value === VisibilityState.VisibleBlurred && dictation.state.phase === 'recording') dictation.cancel();
+        wasImmersive = value !== VisibilityState.NonImmersive;
+      });
+      this.cleanupFuncs.push(stopState, stopVoice, stopVisibility, () => {
+        dictation.cancel();
         this.input.xr.gazeEnabled = previousGaze;
         this.panel = null;
         surface?.dispose();

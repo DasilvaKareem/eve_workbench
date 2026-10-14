@@ -1,13 +1,17 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { AuthFn } from 'eve/channels/auth';
 
-export const workbenchService: AuthFn<Request> = async request => {
+export function workbenchAuthorized(request: Request): boolean {
   const expected = process.env.EVE_API_KEY;
   const value = request.headers.get('authorization');
-  if (!expected || expected.length < 32 || !value?.startsWith('Bearer ')) return null;
+  if (!expected || expected.length < 32 || !value?.startsWith('Bearer ')) return false;
   const provided = Buffer.from(value.slice(7));
   const key = Buffer.from(expected);
-  if (provided.length !== key.length || !timingSafeEqual(provided, key)) return null;
+  return provided.length === key.length && timingSafeEqual(provided, key);
+}
+
+export const workbenchService: AuthFn<Request> = async request => {
+  if (!workbenchAuthorized(request)) return null;
   return { attributes: { workspace: 'personal' }, authenticator: 'workbench-service-key', principalId: 'eve-workbench-owner', principalType: 'service' };
 };
 

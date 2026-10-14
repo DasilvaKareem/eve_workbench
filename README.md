@@ -29,6 +29,16 @@ credentials and a running backend are required for live responses; see the
 
 ## What's included today
 
+- **Spoken replies** — turn **Voice on** in the browser or headset to hear new
+  replies sentence by sentence as they stream. Pick an available device voice
+  in the browser. Voice off mutes immediately; restored history stays silent.
+  This uses the browser speech service, with no additional API key. Voice
+  quality and availability vary by browser and device.
+- **Claude-generated panels** — ask Eve to show a comparison, dashboard, or
+  chart. The `workbench_panel` tool saves up to six panels per conversation,
+  composing text, metric cards, tables, and bar/line charts with follow-up
+  buttons. Open **Eve panels** in the browser or headset. Native spatial pages
+  preserve complete text and chart data, and buttons send ordinary messages.
 - **Watch Eve's browser** — desktop and anchored headset screens show actual
   sandbox browser frames, recent actions, and task cancellation. Viewing is
   read-only and requires the Vercel sandbox backend. See the
