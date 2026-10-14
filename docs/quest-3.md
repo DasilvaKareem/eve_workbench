@@ -1,81 +1,24 @@
-# Quest 3 panel controls
+# The single XR prompt
 
-Quest 3 is the target headset. It supports hands and controllers but does not
-have eye-tracking sensors. Optional gaze remains requested in the project, with
-the SDK's head-pointing fallback. The UI calls this **Aim: Look**, rather than
-claiming to track your eyes.
+Open https://eve-workbench.vercel.app in Quest Browser, unlock the workspace,
+and choose **Enter XR**. There is one **Talk or type** field, **Talk**, and **Send**.
 
-## Using the console
+Tap the field to reveal its in-world keyboard. Point and press/release the
+controller trigger, point and pinch with hands, or poke the controls directly.
+A physical keyboard also writes into the field. Browser and XR share one draft.
+See [voice dictation](voice-dictation.md) for microphone behavior.
 
-- **Dictate:** records a message from the headset microphone. Choose **Stop mic**,
-  review the text in **Reply**, then choose **Send voice** or **Discard**.
-  Allow microphone access with **Enable microphone** before entering XR; see
-  [voice dictation](voice-dictation.md).
-- **Hands:** choose **Aim: Hands**. Reach out and push through a button's surface
-  to poke it, or point and pinch from farther away.
-- **Controllers:** point a controller at a button and press/release the trigger.
-- **Bring closer:** switches to a smaller panel about 65 cm in front of your
-  tracked viewpoint, suitable for direct touch. **Reading distance** returns it
-  to about 1.1 m, with a larger physical panel.
-- **Place in front:** relocates the panel using your current tracked position
-  and facing direction. Clicking the right controller's thumbstick recalls it
-  when it is out of view.
-- **Aim: Look:** enables the SDK's gaze pipeline. On Quest 3, turn your head to
-  aim and pinch to confirm. Looking alone does not activate a button. Direct
-  touch takes precedence while a near pointer is active.
-- **Previous / Next page:** reads a complete response without shrinking the
-  text or discarding its tail. The page indicator shows your position. A new
-  assistant message begins on page one.
-- **Voice on / Voice off:** reads new replies aloud using the browser's speech
-  service, or mutes playback. Choose a device voice in the desktop controls.
-  A browser without speech support reports that it is unavailable.
-- **Eve panels:** opens model-authored text, tables, metrics, and chart panels
-  beside the console. Use Previous/Next page for full content and chart data,
-  Previous/Next panel to switch panels, and Place in front to recenter. Follow-up
-  buttons send their displayed action as an ordinary request to Eve.
+Drag the title bar to move the panel. Hold it with two pointers to resize.
+Manipulation is attached only to the title; it does not capture the input field
+or its buttons. Click the right controller's thumbstick to place the panel in
+front of your current tracked position. It stays anchored after placement.
+**Exit XR** returns to the browser.
 
-Buttons brighten on hover and change color while pressed. Controls that are
-unavailable, such as sending a second task while Eve is working, are dimmed and
-do not invoke their actions. Cancel and exit remain in stable positions.
+Eve's reply appears above the field. Longer replies expose Previous/Next controls.
+While Eve is working, Send becomes Stop. The old task dashboard, voice settings,
+quick prompts, demo controls, and additional screens are absent from the main UI.
 
-The console places itself in front of the first valid tracked view on XR entry.
-It stays anchored there until explicitly repositioned, so it does not follow
-small head movements or cover whatever you look at. Placement follows actual
-tracked eye height for standing or seated use. No per-frame animation is needed
-for panel placement after it settles.
-
-## Running on the headset
-
-Open the app's HTTPS URL in Meta Quest Browser and enter XR. The desktop IWER
-emulator is excluded from production builds; it is still available on the local
-development server. The selected desktop emulator profile does not substitute
-for a physical Quest 3 test.
-
-The existing café scene and desktop agent controls are retained. Live Eve
-responses still require the [backend setup](eve-integration.md).
-
-## Verification status
-
-The separate [sandbox browser screen](browser-watch.md) opens beside the console
-when Eve starts browsing. Use **Watch browser** to reopen it, **Place in front**
-to reposition it, and **Hide browser** to stop watching. Its website image is
-read-only; direct touch/rays operate the panel controls.
-
-Frontend type checking, the production build, and 52 tests pass, including
-pagination coverage for long replies, long tokens, emoji, and paragraph breaks.
-The SDK's isolated UI-render command could not run because no managed runtime is
-available in this restricted execution environment. Physical interaction,
-comfort, and frame rate have not yet been measured on a Quest 3.
-
-On the headset, check both hands, each controller, direct pokes versus pinches,
-disabled buttons, near-mode reach, seated/standing recentering, page navigation,
-tracking loss/recovery, and return from the system menu. Confirm that the first
-tracked placement is visible, that a press fires once, and that hand proximity
-suppresses incidental look selection. These are validation steps, not claims
-that hardware behavior has already been verified.
-
-## References
-
-- [Meta device feature support](https://developers.meta.com/vr/documentation/unity/unity-openxr-settings-quest/)
-- [IWSDK optional gaze and head-pointing fallback](https://developers.meta.com/vr/documentation/iwsdk/guides/get-started-glasses/)
-- [IWSDK physical-headset testing](https://developers.meta.com/vr/documentation/iwsdk/guides/02-testing-experience/)
+Type checking, the real UIKitML parser, and automated interaction-wiring checks
+run locally. The environment blocks browser process startup and local server
+ports, so managed XR emulation is unavailable. Physical Quest interaction,
+resizing, microphone permissions, comfort, and frame rate remain unverified.

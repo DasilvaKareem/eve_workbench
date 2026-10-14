@@ -1,88 +1,33 @@
 <style>
-  .console {
-    flex-direction: column;
-    width: 400;
-    padding-top: 14;
-    padding-right: 16;
-    padding-bottom: 14;
-    padding-left: 16;
-    background-color: #151d21;
-    border-color: #60756a;
-    border-width: 1;
-    border-radius: 12;
-    gap: 8;
-  }
-  .heading { color: #d6f29a; font-size: 20; height: 24; font-weight: 700; }
-  .status { color: #b6c7bd; font-size: 11; height: 16; }
-  .response { color: #f3f3ee; font-size: 13; line-height: 1.35; height: 150; }
-  .content { flex-direction: column; }
-  .chart { width: 368; height: 180; }
-  .chart-summary { color: #b6c7bd; font-size: 10; height: 18; }
-  .row { flex-direction: row; gap: 8; }
-  .button {
-    width: 116;
-    height: 36;
-    align-items: center;
-    justify-content: center;
-    background-color: #29352f;
-    border-color: #60756a;
-    border-width: 1;
-    border-radius: 6;
-    color: #e1efd7;
-    font-size: 12;
-    cursor: pointer;
-  }
-  .navigation { width: 112; height: 28; }
-  .page { width: 128; height: 28; justify-content: center; align-items: center; color: #b6c7bd; font-size: 11; }
-  .utility { height: 32; }
-  .wide { width: 178; height: 32; }
-  .hint { color: #b6c7bd; font-size: 10; line-height: 1.4; height: 28; }
+  .console { flex-direction: column; width: 360; padding-top: 12; padding-right: 12; padding-bottom: 12; padding-left: 12; background-color: #15201c; border-color: #829582; border-width: 1; border-radius: 14; gap: 8; }
+  .row { flex-direction: row; gap: 8; align-items: center; justify-content: space-between; }
+  .heading { color: #d6f29a; font-size: 14; height: 20; }
+  .status { color: #bac9b9; font-size: 10; height: 16; }
+  .reply { flex-direction: column; }
+  .response { color: #f5f5ee; font-size: 12; line-height: 1.35; height: 112; }
+  .field { width: 336; height: 65; font-size: 17; color: #f5f5ee; background-color: #223028; border-color: #94aa8e; border-width: 1; border-radius: 8; padding-top: 10; padding-right: 10; padding-bottom: 10; padding-left: 10; }
+  .button { height: 32; width: 82; align-items: center; justify-content: center; background-color: #2c3a30; color: #f5f5ee; border-color: #60755d; border-width: 1; border-radius: 8; font-size: 12; cursor: pointer; }
+  .send { background-color: #d6f29a; color: #192519; }
+  .small { width: 62; height: 25; font-size: 10; }
+  .page { color: #bac9b9; font-size: 10; }
+  .keyboard { flex-direction: column; gap: 5; }
+  .keys { flex-direction: row; gap: 4; justify-content: center; }
+  .key { width: 29; height: 30; font-size: 13; color: #f5f5ee; background-color: #304137; border-color: #60755d; border-width: 1; border-radius: 5; align-items: center; justify-content: center; cursor: pointer; }
+  .space { width: 130; }
+  .hint { color: #a5b6a2; font-size: 8; height: 12; }
 </style>
 <div class="console">
-  <div class="heading">eve / workbench</div>
-  <div id="eve-xr-status" class="status">Connecting to your agent</div>
-  <div class="row">
-    <button id="eve-xr-view-reply" class="button navigation">Reply</button>
-    <button id="eve-xr-view-map" class="button navigation">Task map</button>
-    <button id="eve-xr-view-progress" class="button navigation">Progress</button>
+  <div class="row"><div id="eve-xr-handle" class="heading" style="width: 240; cursor: grab">Eve / drag to move</div><button id="eve-xr-exit" class="button small">Exit XR</button></div>
+  <div id="eve-xr-reply" class="reply" style="display: none"><div id="eve-xr-response" class="response"></div></div>
+  <div id="eve-xr-pages" class="row" style="display: none"><button id="eve-xr-previous" class="button small">Previous</button><div id="eve-xr-page" class="page"></div><button id="eve-xr-next-page" class="button small">Next</button></div>
+  <textarea id="eve-xr-prompt" class="field" placeholder="Talk or type" />
+  <div class="row"><div id="eve-xr-status" class="status">Connecting...</div><button id="eve-xr-mic" class="button"><span id="eve-xr-mic-label">Talk</span></button><button id="eve-xr-send" class="button send"><span id="eve-xr-send-label">Send</span></button></div>
+  <div id="eve-xr-keyboard" class="keyboard" style="display: none">
+    <div class="keys"><button id="eve-key-0-0" class="key">1</button><button id="eve-key-0-1" class="key">2</button><button id="eve-key-0-2" class="key">3</button><button id="eve-key-0-3" class="key">4</button><button id="eve-key-0-4" class="key">5</button><button id="eve-key-0-5" class="key">6</button><button id="eve-key-0-6" class="key">7</button><button id="eve-key-0-7" class="key">8</button><button id="eve-key-0-8" class="key">9</button><button id="eve-key-0-9" class="key">0</button></div>
+    <div class="keys"><button id="eve-key-1-0" class="key">q</button><button id="eve-key-1-1" class="key">w</button><button id="eve-key-1-2" class="key">e</button><button id="eve-key-1-3" class="key">r</button><button id="eve-key-1-4" class="key">t</button><button id="eve-key-1-5" class="key">y</button><button id="eve-key-1-6" class="key">u</button><button id="eve-key-1-7" class="key">i</button><button id="eve-key-1-8" class="key">o</button><button id="eve-key-1-9" class="key">p</button></div>
+    <div class="keys"><button id="eve-key-2-0" class="key">a</button><button id="eve-key-2-1" class="key">s</button><button id="eve-key-2-2" class="key">d</button><button id="eve-key-2-3" class="key">f</button><button id="eve-key-2-4" class="key">g</button><button id="eve-key-2-5" class="key">h</button><button id="eve-key-2-6" class="key">j</button><button id="eve-key-2-7" class="key">k</button><button id="eve-key-2-8" class="key">l</button></div>
+    <div class="keys"><button id="eve-key-3-0" class="key">z</button><button id="eve-key-3-1" class="key">x</button><button id="eve-key-3-2" class="key">c</button><button id="eve-key-3-3" class="key">v</button><button id="eve-key-3-4" class="key">b</button><button id="eve-key-3-5" class="key">n</button><button id="eve-key-3-6" class="key">m</button><button id="eve-key-3-7" class="key">,</button><button id="eve-key-3-8" class="key">.</button><button id="eve-key-3-9" class="key">?</button></div>
+    <div class="keys"><button id="eve-key-shift" class="button small">Shift</button><button id="eve-key-space" class="key space">Space</button><button id="eve-key-backspace" class="button small">Delete</button><button id="eve-key-done" class="button small">Done</button></div>
   </div>
-  <div id="eve-xr-reply-view" class="content">
-    <div id="eve-xr-response" class="response">Your conversation comes with you.</div>
-  </div>
-  <div id="eve-xr-chart-view" class="content" style="display: none">
-    <img id="eve-xr-task-chart" class="chart" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='1104'%20height='540'%3E%3Crect%20width='1104'%20height='540'%20fill='%23151d21'/%3E%3C/svg%3E" />
-    <div id="eve-xr-chart-summary" class="chart-summary">Loading task chart...</div>
-  </div>
-  <div class="row">
-    <button id="eve-xr-previous" class="button navigation">Previous</button>
-    <div id="eve-xr-page" class="page">1 / 1</div>
-    <button id="eve-xr-next-page" class="button navigation">Next page</button>
-  </div>
-  <div class="row">
-    <button id="eve-xr-plan" class="button">Plan my work</button>
-    <button id="eve-xr-tasks" class="button">Read task list</button>
-    <button id="eve-xr-next" class="button">What's next?</button>
-  </div>
-  <div class="row">
-    <button id="eve-xr-voice" class="button"><span id="eve-xr-voice-label">Dictate</span></button>
-    <button id="eve-xr-voice-send" class="button">Send voice</button>
-    <button id="eve-xr-voice-discard" class="button">Discard</button>
-  </div>
-  <div id="eve-xr-voice-status" class="status">Dictate a message - Review before sending</div>
-  <div class="row">
-    <button id="eve-xr-range" class="button utility"><span id="eve-xr-range-label">Bring closer</span></button>
-    <button id="eve-xr-recenter" class="button utility">Place in front</button>
-    <button id="eve-xr-aim" class="button utility"><span id="eve-xr-aim-label">Aim: Hands</span></button>
-  </div>
-  <div class="row">
-    <button id="eve-xr-browser" class="button utility">Watch browser</button>
-    <button id="eve-xr-panels" class="button utility">Eve panels</button>
-    <button id="eve-xr-speech" class="button utility"><span id="eve-xr-speech-label">Voice off</span></button>
-  </div>
-  <div id="eve-xr-speech-status" class="hint">Read Eve's replies aloud.</div>
-  <div class="row">
-    <button id="eve-xr-cancel" class="button wide">Cancel task</button>
-    <button id="eve-xr-exit" class="button wide">Back to browser</button>
-  </div>
-  <div id="eve-xr-hint" class="hint">Touch a button, or point and select. Right stick click: recenter.</div>
+  <div class="hint">Tap to type / Drag title to move / Two pointers to resize</div>
 </div>

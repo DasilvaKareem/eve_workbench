@@ -1,4 +1,4 @@
-import { eve } from './eve-client.js';
-import { ReplyVoice } from './eve-reply-voice.js';
+import { eve } from './eve-client.ts';
+import { ReplyVoice } from './eve-reply-voice.ts';
 
 export const eveVoice = new ReplyVoice(eve);

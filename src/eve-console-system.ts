@@ -1,19 +1,17 @@
-import { CanvasTexture, createSystem, InputComponent, LinearFilter, PokeInteractable, Quaternion, RayInteractable, SRGBColorSpace, UIKitMLAsset, Vector3, VisibilityState, type UIKit } from '@iwsdk/core';
-import { eve } from './eve-client.js';
-import { paginatePanelText } from './eve-panel-content.js';
-import { taskListText, taskSnapshot } from './eve-task-charts.js';
-import type { TaskChartSurface } from './eve-task-chart-surface.js';
-import { showSandboxBrowser } from './eve-browser-visibility.js';
-import { showGeneratedPanels } from './eve-generated-visibility.js';
-import { eveVoice } from './eve-voice.js';
-import { dictation } from './eve-dictation.js';
+import { HandleStore } from '@pmndrs/handle';
+import { createSystem, InputComponent, PokeInteractable, Quaternion, RayInteractable, UIKitMLAsset, Vector3, VisibilityState, type UIKit } from '@iwsdk/core';
+import { eve } from './eve-client.ts';
+import { paginatePanelText } from './eve-panel-content.ts';
+import { eveVoice } from './eve-voice.ts';
+import { dictation } from './eve-dictation.ts';
+import { promptDraft } from './eve-prompt.ts';
 
-/** Code-owned console, independent of scene composition and the editor's assets. */
+/** One prompt in XR. Native text input plus an in-world keyboard for headset browsers. */
 export class EveConsoleSystem extends createSystem({}) {
   private panel: UIKitMLAsset | null = null;
   private pendingPlacement = false;
-  private near = false;
-  private eyePosition = new Vector3();
+  private handle: HandleStore<unknown> | null = null;
+  private eye = new Vector3();
   private forward = new Vector3();
   private orientation = new Quaternion();
 
@@ -25,234 +23,149 @@ export class EveConsoleSystem extends createSystem({}) {
       const entity = this.world.createTransformEntity(panel);
       entity.addComponent(RayInteractable);
       entity.addComponent(PokeInteractable);
+      // Bind manipulation only to the title handle. Putting a grabbable on the
+      // entire UI root denies ray input to its text fields and buttons.
+      const handle = new HandleStore(panel, () => ({
+        multitouch: true, translate: true, rotate: true,
+        scale: { uniform: true, x: [.16, .4], y: [.16, .4], z: [.16, .4] },
+      }));
+      this.handle = handle;
+      const unbindHandle = handle.bind(panel.requireElementById('eve-xr-handle'));
+      this.cleanupFuncs.push(unbindHandle);
       this.panel = panel;
       panel.visible = false;
-
+      const input = panel.requireElementById<UIKit.Textarea>('eve-xr-prompt');
+      const keyboard = panel.requireElementById('eve-xr-keyboard');
       const status = panel.requireElementById<UIKit.Text>('eve-xr-status');
+      const reply = panel.requireElementById('eve-xr-reply');
       const response = panel.requireElementById<UIKit.Text>('eve-xr-response');
-      const pageLabel = panel.requireElementById<UIKit.Text>('eve-xr-page');
-      const voiceStatus = panel.requireElementById<UIKit.Text>('eve-xr-voice-status');
-      const voiceLabel = panel.requireElementById<UIKit.Text>('eve-xr-voice-label');
-      const replyView = panel.requireElementById('eve-xr-reply-view');
-      const chartView = panel.requireElementById('eve-xr-chart-view');
-      const chartImage = panel.requireElementById<UIKit.Image>('eve-xr-task-chart');
-      const chartSummary = panel.requireElementById<UIKit.Text>('eve-xr-chart-summary');
-      let view: 'reply' | 'list' | 'map' | 'progress' = 'reply';
-      let surface: TaskChartSurface | undefined;
-      let texture: CanvasTexture | undefined;
-      let chartLoading = false;
-      let chartFailed = false;
-      let replyText = 'Your conversation comes with you.';
+      let typing = false, uppercase = false, page = 0, lastMessage = '';
       let pages = [''];
-      let page = 0;
-      let pageCount = 1;
-      let lastText = '';
-      let lastMessage = '';
-      let headAim = false;
-      const previousGaze = this.input.xr.gazeEnabled;
-      // Quest 3's primary inputs are hands/controllers. Look-and-pinch is opt-in.
-      this.input.xr.gazeEnabled = false;
-      const refreshButtons: (() => void)[] = [];
-      const refresh = () => { for (const update of refreshButtons) update(); };
-      const loadChart = async () => {
-        if (surface || chartLoading || chartFailed || disposed) return;
-        chartLoading = true;
-        chartSummary.setProperties({ text: 'Loading task chart...' });
-        try {
-          const { createTaskChartSurface } = await import('./eve-task-chart-surface.js');
-          if (disposed) return;
-          const canvas = document.createElement('canvas');
-          surface = createTaskChartSurface(canvas, () => { if (texture) texture.needsUpdate = true; });
-          texture = new CanvasTexture(canvas);
-          texture.colorSpace = SRGBColorSpace;
-          texture.generateMipmaps = false;
-          texture.minFilter = LinearFilter;
-          texture.magFilter = LinearFilter;
-          chartImage.setProperties({ src: texture });
-          showPage();
-        } catch (error) {
-          chartFailed = true;
-          chartImage.setProperties({ display: 'none' });
-          chartSummary.setProperties({ text: 'Chart unavailable. Use Read task list.' });
-          console.error('Spatial task chart could not load:', error);
-        } finally { chartLoading = false; }
+      const ready = () => ['ready', 'waiting'].includes(eve.state.phase);
+      const busyVoice = () => ['preparing', 'recording', 'transcribing'].includes(dictation.state.phase);
+      const setTyping = (value: boolean) => {
+        typing = value;
+        keyboard.setProperties({ display: value ? 'flex' : 'none' });
       };
-      const showPage = () => {
-        const chart = view === 'map' || view === 'progress';
-        replyView.setProperties({ display: chart ? 'none' : 'flex' });
-        chartView.setProperties({ display: chart ? 'flex' : 'none' });
-        if (view === 'map' || view === 'progress') {
-          const snapshot = taskSnapshot(eve.state.tasks, page);
-          pageCount = view === 'map' ? snapshot.pageCount : 1;
-          page = view === 'map' ? snapshot.page : 0;
-          if (surface) {
-            chartImage.setProperties({ display: 'flex' });
-            surface.update(eve.state.tasks, view, page);
-            chartSummary.setProperties({ text: snapshot.summary });
-          } else if (!chartFailed) void loadChart();
-        } else {
-          const voice = dictation.state;
-          const voiceText = voice.phase === 'review' ? `Voice draft — not sent\n\n${voice.draft}\n\nChoose Send voice to send this to Eve, or Discard.`
-            : voice.phase === 'recording' ? 'Listening. Speak your message, then choose Stop mic. Recording stops after 45 seconds.'
-            : voice.phase === 'transcribing' ? 'Turning your recording into text. Your message has not been sent to Eve.'
-            : voice.phase === 'preparing' ? 'Allow microphone access. If the permission prompt is not visible, choose Back to browser and Enable microphone first.'
-            : voice.phase === 'error' ? voice.error : null;
-          const text = view === 'list' ? taskListText(eve.state.tasks) : voiceText || replyText;
-          if (text !== lastText) { pages = paginatePanelText(text); lastText = text; }
-          pageCount = pages.length;
-          page = Math.max(0, Math.min(page, pageCount - 1));
-          response.setProperties({ text: pages[page] });
-        }
-        pageLabel.setProperties({ text: `${view === 'list' ? 'Tasks · ' : ''}${page + 1} / ${pageCount}` });
-        refresh();
-      };
-      const bind = (id: string, handler: () => void, enabled = () => true, selected = () => false) => {
+      input.setProperties({ onValueChange: (value: string) => promptDraft.set(value) });
+      // A browser keyboard is not guaranteed in immersive mode. This opens a real
+      // ray/poke keyboard inside the same panel and also allows physical keyboards.
+      const onField = () => { if (ready() && !busyVoice()) setTyping(true); };
+      input.addEventListener('click', onField);
+      input.element.maxLength = 12000;
+      input.element.setAttribute('aria-label', 'Talk or type');
+      for (const eventName of ['keydown', 'keyup']) {
+        const onKey = (raw: Event) => {
+          const event = raw as KeyboardEvent;
+          event.stopPropagation();
+          if (eventName === 'keydown' && event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); }
+        };
+        input.element.addEventListener(eventName, onKey);
+        this.cleanupFuncs.push(() => input.element.removeEventListener(eventName, onKey));
+      }
+      const paint: (() => void)[] = [];
+      const bind = (id: string, action: () => void, enabled = () => true) => {
         const button = panel.requireElementById(id);
-        const hovering = new Set<number>();
-        const pressing = new Set<number>();
-        const paint = () => button.setProperties({
-          backgroundColor: !enabled() ? '#1e2823' : pressing.size ? '#b8da86' : hovering.size ? '#425746' : selected() ? '#354735' : '#29352f',
-          color: !enabled() ? '#748378' : pressing.size ? '#182117' : selected() ? '#d6f29a' : '#e1efd7',
-          borderColor: enabled() && (hovering.size || selected()) ? '#d6f29a' : '#60756a',
+        let hover = false, pressed = false;
+        const refresh = () => button.setProperties({
+          backgroundColor: !enabled() ? '#263029' : pressed ? '#9db785' : hover ? '#4f6749' : id === 'eve-xr-send' ? '#d6f29a' : '#304137',
+          color: !enabled() ? '#73816f' : id === 'eve-xr-send' ? '#192519' : '#f5f5ee',
         });
-        const onEnter = (event: { pointerId?: number }) => { hovering.add(event.pointerId ?? 0); paint(); };
-        const onLeave = (event: { pointerId?: number }) => { hovering.delete(event.pointerId ?? 0); pressing.delete(event.pointerId ?? 0); paint(); };
-        const onDown = (event: { pointerId?: number }) => { pressing.add(event.pointerId ?? 0); paint(); };
-        const onUp = (event: { pointerId?: number }) => { pressing.delete(event.pointerId ?? 0); paint(); };
-        const onClick = () => { if (enabled()) handler(); paint(); };
-        button.addEventListener('pointerenter', onEnter);
-        button.addEventListener('pointerleave', onLeave);
-        button.addEventListener('pointerdown', onDown);
-        button.addEventListener('pointerup', onUp);
-        button.addEventListener('pointercancel', onLeave);
-        button.addEventListener('click', onClick);
-        refreshButtons.push(paint);
-        this.cleanupFuncs.push(() => {
-          button.removeEventListener('pointerenter', onEnter);
-          button.removeEventListener('pointerleave', onLeave);
-          button.removeEventListener('pointerdown', onDown);
-          button.removeEventListener('pointerup', onUp);
-          button.removeEventListener('pointercancel', onLeave);
-          button.removeEventListener('click', onClick);
-        });
+        const enter = () => { hover = true; refresh(); };
+        const leave = () => { hover = false; pressed = false; refresh(); };
+        const down = () => { pressed = true; refresh(); };
+        const up = () => { pressed = false; refresh(); };
+        const click = () => { if (enabled()) action(); refresh(); };
+        const events = [['pointerenter', enter], ['pointerleave', leave], ['pointerdown', down], ['pointerup', up], ['pointercancel', leave], ['click', click]] as const;
+        for (const [name, listener] of events) button.addEventListener(name, listener);
+        this.cleanupFuncs.push(() => { for (const [name, listener] of events) button.removeEventListener(name, listener); });
+        paint.push(refresh);
       };
-      const canSend = () => ['ready', 'waiting'].includes(eve.state.phase);
-      const selectView = (next: typeof view) => { view = next; page = 0; chartFailed = false; showPage(); };
-      bind('eve-xr-voice', () => {
-        selectView('reply');
+      const showReply = () => {
+        const latest = [...eve.state.messages].reverse().find(message => message.role === 'assistant');
+        const text = eve.state.error || latest?.text || '';
+        if (latest?.id !== lastMessage) { lastMessage = latest?.id || ''; page = 0; }
+        pages = paginatePanelText(text, 44, 7);
+        page = Math.max(0, Math.min(page, pages.length - 1));
+        reply.setProperties({ display: text ? 'flex' : 'none' });
+        response.setProperties({ text: pages[page] });
+        panel.requireElementById('eve-xr-pages').setProperties({ display: pages.length > 1 ? 'flex' : 'none' });
+        panel.requireElementById<UIKit.Text>('eve-xr-page').setProperties({ text: `${page + 1} / ${pages.length}` });
+      };
+      const render = () => {
+        const voice = dictation.state;
+        input.setProperties({ disabled: !ready() || busyVoice() });
+        status.setProperties({ text: voice.error || (voice.phase === 'recording' ? 'Listening...'
+          : voice.phase === 'transcribing' ? 'Transcribing...'
+          : voice.phase === 'preparing' ? 'Allow microphone...'
+          : eve.state.phase === 'locked' ? 'Unlock in browser first' : eve.state.activity) });
+        panel.requireElementById<UIKit.Text>('eve-xr-mic-label').setProperties({ text: voice.phase === 'recording' ? 'Stop mic' : 'Talk' });
+        panel.requireElementById<UIKit.Text>('eve-xr-send-label').setProperties({ text: eve.state.phase === 'working' ? 'Stop' : 'Send' });
+        if (!ready() || busyVoice()) setTyping(false);
+        showReply();
+        for (const refresh of paint) refresh();
+      };
+      const send = () => {
+        if (eve.state.phase === 'working') { void eve.cancel(); return; }
+        const text = promptDraft.text.trim();
+        if (!ready() || busyVoice() || !text) return;
+        setTyping(false); input.blur(); promptDraft.set(''); dictation.cancel(); void eve.send(text);
+      };
+      bind('eve-xr-send', send, () => eve.state.phase === 'working' || (ready() && !busyVoice() && Boolean(promptDraft.text.trim())));
+      bind('eve-xr-mic', () => {
+        setTyping(false); input.blur();
         if (dictation.state.phase === 'recording') dictation.stop();
         else { eveVoice.stop(); void dictation.start(); }
-      }, () => (canSend() || dictation.state.phase === 'recording') && dictation.state.supported && !['preparing', 'transcribing'].includes(dictation.state.phase),
-      () => dictation.state.phase === 'recording');
-      bind('eve-xr-voice-send', () => {
-        const text = dictation.state.draft;
-        dictation.cancel();
-        selectView('reply');
-        void eve.send(text);
-      }, () => canSend() && dictation.state.phase === 'review' && Boolean(dictation.state.draft.trim()));
-      bind('eve-xr-voice-discard', () => dictation.cancel(), () => dictation.state.phase !== 'idle' || dictation.state.micReady);
-      bind('eve-xr-view-reply', () => selectView('reply'), () => true, () => view === 'reply');
-      bind('eve-xr-view-map', () => selectView('map'), () => true, () => view === 'map');
-      bind('eve-xr-view-progress', () => selectView('progress'), () => true, () => view === 'progress');
-      bind('eve-xr-plan', () => void eve.send('Help me plan my work. Ask me what I want to accomplish.'), canSend);
-      bind('eve-xr-tasks', () => selectView('list'));
-      bind('eve-xr-next', () => void eve.send('Based on our conversation and task board, suggest my next concrete step.'), canSend);
-      bind('eve-xr-cancel', () => { eveVoice.stop(); void eve.cancel(); }, () => ['working', 'waiting'].includes(eve.state.phase));
+      }, () => dictation.state.phase === 'recording' || (ready() && dictation.state.supported && !busyVoice()));
       bind('eve-xr-exit', () => { void this.world.exitXR(); });
-      bind('eve-xr-browser', () => showSandboxBrowser());
-      bind('eve-xr-panels', () => showGeneratedPanels());
-      bind('eve-xr-speech', () => eveVoice.setEnabled(!eveVoice.state.enabled), () => eveVoice.state.supported, () => eveVoice.state.enabled);
-      const stopReplyVoice = eveVoice.subscribe(state => {
-        panel.requireElementById<UIKit.Text>('eve-xr-speech-label').setProperties({ text: state.enabled ? 'Voice on' : 'Voice off' });
-        panel.requireElementById<UIKit.Text>('eve-xr-speech-status').setProperties({ text: state.error || (!state.supported ? 'Speech unavailable in this browser.' : state.speaking ? 'Reading reply aloud' : 'Voice reads new replies. Choose a voice in the browser.') });
-        refresh();
-      });
-      this.cleanupFuncs.push(stopReplyVoice);
-      bind('eve-xr-previous', () => { page--; showPage(); }, () => page > 0);
-      bind('eve-xr-next-page', () => { page++; showPage(); }, () => page < pageCount - 1);
-      bind('eve-xr-range', () => {
-        this.near = !this.near;
-        panel.requireElementById<UIKit.Text>('eve-xr-range-label').setProperties({ text: this.near ? 'Reading distance' : 'Bring closer' });
-        this.pendingPlacement = true;
-      });
-      bind('eve-xr-recenter', () => { this.pendingPlacement = true; });
-      bind('eve-xr-aim', () => {
-        headAim = !headAim;
-        this.input.xr.gazeEnabled = headAim;
-        panel.requireElementById<UIKit.Text>('eve-xr-aim-label').setProperties({ text: headAim ? 'Aim: Look' : 'Aim: Hands' });
-        panel.requireElementById<UIKit.Text>('eve-xr-hint').setProperties({ text: headAim
-          ? 'Look toward a button and pinch. Quest 3 uses head pointing. Touch still works.'
-          : 'Touch a button, or point + trigger/pinch. Right stick click: recenter.' });
-      });
-      const stopState = eve.subscribe(state => {
-        status.setProperties({ text: state.activity });
-        const latest = [...state.messages].reverse().find(message => message.role === 'assistant');
-        const text = state.error || latest?.text || 'Your conversation comes with you. Start a plan, check your tasks, or continue from the browser.';
-        const message = state.error ? `error:${state.error}` : latest?.id || 'welcome';
-        if (message !== lastMessage) { if (view === 'reply') page = 0; lastMessage = message; }
-        replyText = text;
-        showPage();
-      });
-      let voicePhase = dictation.state.phase;
-      const stopVoice = dictation.subscribe(state => {
-        voiceLabel.setProperties({ text: state.phase === 'recording' ? 'Stop mic' : 'Dictate' });
-        voiceStatus.setProperties({ text: !state.supported ? 'Microphone recording is unavailable in this browser.'
-          : state.phase === 'recording' ? 'MIC ON - Tap Stop mic when finished.'
-          : state.phase === 'transcribing' ? 'Transcribing your recording...'
-          : state.phase === 'review' ? 'Review your voice draft, then Send voice.'
-          : state.phase === 'preparing' ? 'Waiting for microphone permission...'
-          : state.phase === 'error' ? 'Microphone needs attention. See Reply.'
-          : 'Dictate a message - Review before sending' });
-        if (state.phase !== voicePhase && ['review', 'error'].includes(state.phase)) { view = 'reply'; page = 0; }
-        voicePhase = state.phase;
-        showPage();
-      });
-      let wasImmersive = false;
-      const stopVisibility = this.world.visibilityState.subscribe(value => {
-        if (value === VisibilityState.NonImmersive) {
-          panel.visible = false;
-          if (wasImmersive && ['preparing', 'recording'].includes(dictation.state.phase)) dictation.cancel();
+      bind('eve-xr-previous', () => { page--; render(); }, () => page > 0);
+      bind('eve-xr-next-page', () => { page++; render(); }, () => page < pages.length - 1);
+      const rows = ['1234567890', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm,.?'];
+      for (const [i, row] of rows.entries()) for (const [j, key] of Array.from(row).entries()) {
+        bind(`eve-key-${i}-${j}`, () => promptDraft.insert(uppercase ? key.toUpperCase() : key), () => ready() && typing);
+      }
+      bind('eve-key-space', () => promptDraft.insert(' '));
+      bind('eve-key-backspace', () => promptDraft.backspace());
+      bind('eve-key-done', () => { setTyping(false); input.blur(); });
+      bind('eve-key-shift', () => {
+        uppercase = !uppercase;
+        for (const [i, row] of rows.entries()) for (const [j, key] of Array.from(row).entries()) {
+          panel.requireElementById<UIKit.Text>(`eve-key-${i}-${j}`).setProperties({ text: uppercase ? key.toUpperCase() : key });
         }
-        else this.pendingPlacement = true;
-        if (value === VisibilityState.VisibleBlurred && dictation.state.phase === 'recording') dictation.cancel();
-        wasImmersive = value !== VisibilityState.NonImmersive;
       });
-      this.cleanupFuncs.push(stopState, stopVoice, stopVisibility, () => {
-        dictation.cancel();
-        this.input.xr.gazeEnabled = previousGaze;
-        this.panel = null;
-        surface?.dispose();
-        chartImage.setProperties({ src: undefined });
-        texture?.dispose();
-        entity.dispose();
+      const stopDraft = promptDraft.subscribe(text => { input.setProperties({ value: text }); render(); });
+      const stopState = eve.subscribe(render);
+      const stopVoice = dictation.subscribe(render);
+      const stopVisibility = this.world.visibilityState.subscribe(value => {
+        if (value === VisibilityState.NonImmersive) { panel.visible = false; setTyping(false); input.blur(); }
+        else if (value === VisibilityState.Visible && !panel.visible) this.pendingPlacement = true;
+        if (value !== VisibilityState.Visible && dictation.state.phase === 'recording') dictation.cancel();
       });
-    }).catch(error => { console.error('Eve spatial console could not load:', error); });
+      this.cleanupFuncs.push(stopDraft, stopState, stopVoice, stopVisibility, () => {
+        input.removeEventListener('click', onField); dictation.cancel(); this.panel = null; this.handle = null; entity.dispose();
+      });
+    }).catch(error => console.error('Eve prompt could not load:', error));
   }
 
-  update(): void {
+  update(_delta: number, time: number): void {
     if (!this.panel || this.world.visibilityState.peek() !== VisibilityState.Visible) return;
+    this.handle?.update(time * 1000);
     if (this.input.xr.gamepads.right?.getButtonDown(InputComponent.Thumbstick)) this.pendingPlacement = true;
     if (!this.pendingPlacement) return;
-    const frame = this.xrManager.getFrame();
-    const reference = this.xrManager.getReferenceSpace();
+    const frame = this.xrManager.getFrame(), reference = this.xrManager.getReferenceSpace();
     if (!frame || !reference) return;
-    const pose = frame.getViewerPose(reference);
-    if (!pose) return;
+    const pose = frame.getViewerPose(reference); if (!pose) return;
     this.player.updateWorldMatrix(true, false);
-    const position = pose.transform.position;
-    const rotation = pose.transform.orientation;
-    this.eyePosition.set(position.x, position.y, position.z).applyMatrix4(this.player.matrixWorld);
+    const position = pose.transform.position, rotation = pose.transform.orientation;
+    this.eye.set(position.x, position.y, position.z).applyMatrix4(this.player.matrixWorld);
     this.orientation.set(rotation.x, rotation.y, rotation.z, rotation.w);
     this.forward.set(0, 0, -1).applyQuaternion(this.orientation).transformDirection(this.player.matrixWorld);
     this.forward.y = 0;
-    if (this.forward.lengthSq() < 0.001) this.forward.set(0, 0, -1);
-    else this.forward.normalize();
-    const distance = this.near ? 0.65 : 1.1;
-    this.panel.position.copy(this.eyePosition).addScaledVector(this.forward, distance);
-    this.panel.position.y -= this.near ? 0.12 : 0.16;
+    if (this.forward.lengthSq() < .001) this.forward.set(0, 0, -1); else this.forward.normalize();
+    this.panel.position.copy(this.eye).addScaledVector(this.forward, .85);
+    this.panel.position.y -= .15;
     this.panel.rotation.set(0, Math.atan2(-this.forward.x, -this.forward.z), 0);
-    this.panel.scale.setScalar(this.near ? 0.14 : 0.2);
-    this.panel.visible = true;
-    this.pendingPlacement = false;
+    this.panel.scale.setScalar(.24);
+    this.panel.visible = true; this.pendingPlacement = false;
   }
 }

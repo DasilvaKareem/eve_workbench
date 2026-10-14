@@ -16,24 +16,14 @@
 
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
-import { ControllerInputSystem } from './input.js';
-import { PanelSystem } from './panel.js';
-import { RobotSystem } from './robot.js';
 import { EveConsoleSystem } from './eve-console-system.js';
-import { EveBrowserSystem } from './eve-browser-system.js';
-import { EveGeneratedSystem } from './eve-generated-system.js';
 import { mountWorkbench } from './eve-workbench.js';
 
 World.create(
   document.getElementById('scene-container') as HTMLDivElement,
   projectOptions,
 ).then((world) => {
-  world.registerSystem(RobotSystem);
-  world.registerSystem(PanelSystem);
-  world.registerSystem(ControllerInputSystem);
   world.registerSystem(EveConsoleSystem);
-  world.registerSystem(EveBrowserSystem);
-  world.registerSystem(EveGeneratedSystem);
   mountWorkbench(world);
 }).catch((error) => {
   console.error('The XR workspace could not start:', error);
