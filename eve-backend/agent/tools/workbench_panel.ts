@@ -13,14 +13,15 @@ const block = z.discriminatedUnion('type', [
 ]);
 
 export default defineTool({
-  description: 'Create or update a visible panel in the browser and WebXR workspace. Compose text, metric cards, tables, and bar/line charts. Use a stable panel id to replace it. Actions are follow-up prompts sent only when the user clicks. Never invent measured data. Returns the complete conversation-scoped panel snapshot.',
+  description: 'Create or update visible UI in the browser and WebXR workspace: text, metrics, tables, bar/line charts. Use upsert with openInWindow true when the user asks for a separate floating window. Use open with panelId to open an existing panel as a movable window. Use a stable panel id to update it. Actions are follow-up prompts sent only when clicked. Never invent measured data. Returns the complete conversation-scoped panel snapshot.',
   inputSchema: z.object({
-    operation: z.enum(['upsert', 'remove', 'list']),
+    operation: z.enum(['upsert', 'open', 'remove', 'list']),
+    openInWindow: z.boolean().optional(),
     panel: z.object({ id: short(64).regex(/^[a-zA-Z0-9_-]+$/), title: short(120), blocks: z.array(block).min(1).max(8),
       actions: z.array(z.object({ label: short(40), prompt: short(1000) })).max(3).optional() }).optional(),
     panelId: short(64).optional(),
   }),
-  execute({ operation, panel: input, panelId }) {
+  execute({ operation, panel: input, panelId, openInWindow }) {
     if (operation === 'upsert') {
       const panel = parseWorkbenchPanel(input);
       if (!panel) throw new Error('Supply a valid panel. Table rows and chart series must match their columns or labels.');
@@ -28,7 +29,12 @@ export default defineTool({
     } else if (operation === 'remove') {
       if (!panelId) throw new Error('panelId is required to remove a panel.');
       workbenchPanels.update(panels => panels.filter(panel => panel.id !== panelId));
+    } else if (operation === 'open' && !workbenchPanels.get().some(panel => panel.id === panelId)) {
+      throw new Error('Supply the panelId of an existing panel to open a window.');
     }
-    return { panels: workbenchPanels.get() };
+    return { panels: workbenchPanels.get(),
+      ...(operation === 'upsert' ? { updatedPanelId: input!.id } : {}),
+      ...(operation === 'open' || (operation === 'upsert' && openInWindow) ? { openWindowId: operation === 'open' ? panelId : input!.id } : {}),
+    };
   },
 });

@@ -145,6 +145,13 @@ limit; clients reconnect from the absolute event count.
   prompt buttons. Six panels are retained per conversation. Renderers validate
   the same bounded data format and never execute model-authored markup or code.
   Chart data and long text remain fully readable through native page controls.
+- `workbench_panel` upserts can include `openInWindow: true`; operation `open`
+  with `panelId` opens an existing result. `openWindowId` in the successful tool
+  result opens an independent desktop/XR window. `updatedPanelId` fills a blank
+  window created with **New window**. Updates keep the same window and transform;
+  closing a window preserves its inline chat card. Window controls use SDK ray,
+  poke, and title-only move/resize gestures. A right-thumbstick press recenters
+  all open XR windows. Positions are local and reset on reload or XR re-entry.
 - **Voice on** enables browser/device speech synthesis for new assistant text.
   Sentences are queued before the turn finishes; final fragments flush at message
   completion. Voice off, task cancellation, new messages, and conversation resets

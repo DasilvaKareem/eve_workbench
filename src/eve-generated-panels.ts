@@ -1,10 +1,11 @@
 import { eve } from './eve-client.js';
+import { workspaceWindows } from './eve-windows.ts';
 import { panelBlockText } from './eve-generated-content.js';
 import type { WorkbenchPanel } from '../shared/workbench-panels.js';
 import type { createGeneratedChartSurface } from './eve-task-chart-surface.js';
 
-export function mountInlinePanel(content: HTMLElement, panel: WorkbenchPanel, onLayout?: () => void) {
-  content.className = 'eve-generated-content eve-inline-panel';
+export function mountInlinePanel(content: HTMLElement, panel: WorkbenchPanel, onLayout?: () => void, allowOpenWindow = true) {
+  content.classList.add('eve-generated-content', 'eve-inline-panel');
   content.dataset.panelId = panel.id;
   content.setAttribute('aria-label', panel.title);
   const heading = document.createElement('h3'); heading.textContent = panel.title; content.append(heading);
@@ -37,20 +38,26 @@ export function mountInlinePanel(content: HTMLElement, panel: WorkbenchPanel, on
     }
 
   const actions = document.createElement('div'); actions.className = 'eve-panel-actions';
+  if (allowOpenWindow) {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Open window';
+    button.addEventListener('click', () => workspaceWindows.open(panel.id)); actions.append(button);
+  }
   for (const action of panel.actions) {
     const button = document.createElement('button'); button.type = 'button'; button.textContent = action.label;
     button.addEventListener('click', () => { if (['ready', 'waiting'].includes(eve.state.phase)) void eve.send(action.prompt); });
     actions.append(button);
   }
   content.append(actions, notice);
-  const stop = eve.subscribe(state => {
-    for (const button of actions.querySelectorAll<HTMLButtonElement>('button')) button.disabled = !['ready', 'waiting'].includes(state.phase);
-  });
+  const refresh = () => {
+    const state = eve.state;
+    for (const button of actions.querySelectorAll<HTMLButtonElement>('button')) button.disabled = button.textContent === 'Open window' ? workspaceWindows.entries.length >= 6 && !workspaceWindows.entries.some(entry => entry.panel?.id === panel.id) : !['ready', 'waiting'].includes(state.phase);
+  };
+  const stop = eve.subscribe(refresh), stopWindows = workspaceWindows.subscribe(refresh);
   if (charts.length) void import('./eve-task-chart-surface.js').then(({ createGeneratedChartSurface }) => {
     if (disposed) return;
     try { for (const { canvas, block } of charts) { const surface = createGeneratedChartSurface(canvas); surfaces.push(surface); surface.update(block); } }
     catch { clearCharts(); notice.textContent = 'Chart unavailable. Complete data is shown below it.'; }
     onLayout?.();
   }).catch(() => { if (!disposed) notice.textContent = 'Chart unavailable. Complete data is shown below it.'; });
-  return () => { disposed = true; stop(); clearCharts(); };
+  return () => { disposed = true; stop(); stopWindows(); clearCharts(); };
 }

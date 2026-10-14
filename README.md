@@ -39,6 +39,12 @@ credentials and a running backend are required for live responses; see the
   composing text, metric cards, tables, and bar/line charts with follow-up
   buttons. Results appear inline in the chat in both browser and headset. Native chat cards
   preserve complete text and chart data, and buttons send ordinary messages.
+- **Independent floating windows** — press **New window** (or **+ Window** in
+  XR), then tell Eve what to put there. **Open window** on a generated card opens
+  that result separately. You can also ask “Open a graph in a separate window.”
+  Up to six windows stay open together. Pinch a window's title to move it, use
+  two hands on the title to resize, and **Close** to dismiss it. The chat keeps
+  the original result. Desktop windows support title dragging and corner resizing.
 - **Watch Eve's browser** — desktop and anchored headset screens show actual
   sandbox browser frames, recent actions, and task cancellation. Viewing is
   read-only and requires the Vercel sandbox backend. See the

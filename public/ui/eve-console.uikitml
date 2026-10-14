@@ -14,7 +14,7 @@
 <div class="console">
   <div class="row"><div id="eve-xr-handle" class="handle"><div class="heading">Eve / pinch title to move</div></div><button id="eve-xr-exit" class="button small">Exit XR</button></div>
   <div id="eve-xr-transcript" class="transcript"></div>
-  <div id="eve-xr-scroll" class="row"><button id="eve-xr-previous" class="button small">Older</button><div class="status">Conversation</div><button id="eve-xr-next-page" class="button small">Newer</button></div>
+  <div class="row"><button id="eve-xr-new-window" class="button">+ Window</button><div id="eve-xr-scroll" class="row"><button id="eve-xr-previous" class="button small">Older</button><button id="eve-xr-next-page" class="button small">Newer</button></div></div>
   <textarea id="eve-xr-prompt" class="field" placeholder="Talk or type" />
   <div class="row"><div id="eve-xr-status" class="status">Connecting...</div><button id="eve-xr-mic" class="button"><span id="eve-xr-mic-label">Talk / type</span></button><button id="eve-xr-send" class="button send"><span id="eve-xr-send-label">Send</span></button></div>
   <div id="eve-xr-gesture-hint" class="hint">Thumb + index: pinch title to move / Two hands: resize</div>

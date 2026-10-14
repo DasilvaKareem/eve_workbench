@@ -27,6 +27,11 @@ const publicAssetUrl = (filePath: string): string =>
   `${import.meta.env.BASE_URL}${filePath.replace(/^\/+/u, '')}`;
 
 export default defineAssets({
+  'eve-window': {
+    url: publicAssetUrl('ui/eve-window.uikitml'),
+    type: AssetType.UIKitML,
+    name: 'Eve Floating Window',
+  },
   'eve-browser': {
     url: publicAssetUrl('ui/eve-browser.uikitml'),
     type: AssetType.UIKitML,

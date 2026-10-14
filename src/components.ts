@@ -17,5 +17,6 @@
 import { defineComponents } from '@iwsdk/core';
 import { DemoCube } from './demo-cube-component.js';
 import { Robot } from './robot-component.js';
+import { EveFloatingWindow } from './eve-window-component.ts';
 
-export default defineComponents([Robot, DemoCube]);
+export default defineComponents([Robot, DemoCube, EveFloatingWindow]);

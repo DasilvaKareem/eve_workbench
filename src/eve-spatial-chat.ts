@@ -1,10 +1,11 @@
 import { CanvasTexture, LinearFilter, SRGBColorSpace, UIKit } from '@iwsdk/core';
-import { eve, type Message } from './eve-client.ts';
+import { eve, type EveState, type Message } from './eve-client.ts';
+import { workspaceWindows } from './eve-windows.ts';
 import { panelBlockText } from './eve-generated-content.ts';
 import type { createGeneratedChartSurface } from './eve-task-chart-surface.js';
 
 /** The same chronological messages and result cards as the browser chat. */
-export function mountSpatialChat(viewport: UIKit.Container) {
+export function mountSpatialChat(viewport: UIKit.Container, select = (state: EveState): Message[] => state.messages, allowOpenWindow = true) {
   const cards = new Map<string, { root: UIKit.Container; text?: UIKit.Text; key: string; dispose: () => void }>();
   let stickToBottom = true;
   let disposed = false;
@@ -80,6 +81,12 @@ export function mountSpatialChat(viewport: UIKit.Container) {
         const click = () => { if (['ready', 'waiting'].includes(eve.state.phase)) void eve.send(action.prompt); };
         button.addEventListener('click', click); stopButtons.push(() => button.removeEventListener('click', click));
       }
+      if (allowOpenWindow) {
+        const button = text(root, 'Open window', 11, '#d6f29a');
+        button.setProperties({ backgroundColor: '#304137', padding: 8, borderRadius: 6, cursor: 'pointer' });
+        const click = () => workspaceWindows.open(panel.id);
+        button.addEventListener('click', click); stopButtons.push(() => button.removeEventListener('click', click));
+      }
     }
     const dispose = () => {
       active = false;
@@ -94,14 +101,15 @@ export function mountSpatialChat(viewport: UIKit.Container) {
   const stopScroll = viewport.scrollPosition?.subscribe(() => {
     if (!settingScroll) { resultAnchor = undefined; stickToBottom = bottom() - (viewport.scrollPosition?.peek()[1] || 0) < 12; }
   });
-  const stopState = eve.subscribe(state => {
+  const render = (state: EveState) => {
+    const messages = select(state);
     if (viewport.scrollPosition) stickToBottom = bottom() - viewport.scrollPosition.peek()[1] < 12;
-    const userId = state.messages.slice().reverse().find(message => message.role === 'user')?.id;
+    const userId = messages.slice().reverse().find(message => message.role === 'user')?.id;
     if (userId !== lastUserId) { resultAnchor = undefined; stickToBottom = true; lastUserId = userId; }
-    viewport.setProperties({ display: state.messages.length ? 'flex' : 'none' });
-    const ids = new Set(state.messages.map(message => message.id));
+    viewport.setProperties({ display: messages.length ? 'flex' : 'none' });
+    const ids = new Set(messages.map(message => message.id));
     for (const [id, card] of cards) if (!ids.has(id)) { card.dispose(); cards.delete(id); }
-    for (const message of state.messages) {
+    for (const message of messages) {
       let card = cards.get(message.id);
       const changed = message.panel && card?.key !== JSON.stringify(message.panel);
       if (changed) resultAnchor = message.id;
@@ -110,13 +118,14 @@ export function mountSpatialChat(viewport: UIKit.Container) {
       else if (card.text) card.text.setProperties({ text: message.text });
     }
     // Stable chronological order, including an updated result card in its original turn.
-    const order = state.messages.map(message => cards.get(message.id)!.root);
+    const order = messages.map(message => cards.get(message.id)!.root);
     if (order.some((root, index) => viewport.children[index] !== root)) {
       viewport.remove(...order); viewport.add(...order);
     }
     followLayout();
-  });
+  };
+  const stopState = eve.subscribe(render);
   const stopSize = viewport.maxScrollPosition.subscribe(followLayout);
   const stopViewport = viewport.size.subscribe(followLayout);
-  return { scroll, dispose() { disposed = true; stopState(); stopSize(); stopViewport(); stopScroll?.(); for (const card of cards.values()) card.dispose(); cards.clear(); } };
+  return { scroll, refresh() { render(eve.state); }, dispose() { disposed = true; stopState(); stopSize(); stopViewport(); stopScroll?.(); for (const card of cards.values()) card.dispose(); cards.clear(); } };
 }

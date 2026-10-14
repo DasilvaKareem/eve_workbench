@@ -5,6 +5,7 @@ import { eveVoice } from './eve-voice.ts';
 import { bindNativeInput } from './eve-native-input.ts';
 import { promptDraft } from './eve-prompt.ts';
 import { bindPanelGestures } from './eve-panel-gestures.ts';
+import { workspaceWindows } from './eve-windows.ts';
 
 /** One prompt in XR. Quest system keyboard and dictation through a focused DOM text field. */
 export class EveConsoleSystem extends createSystem({}) {
@@ -86,6 +87,8 @@ export class EveConsoleSystem extends createSystem({}) {
       bind('eve-xr-exit', () => { void this.world.exitXR(); });
       bind('eve-xr-previous', () => chat.scroll(-150));
       bind('eve-xr-next-page', () => chat.scroll(150));
+      bind('eve-xr-new-window', () => { workspaceWindows.create(); if (ready()) nativeInput.open(); }, () => workspaceWindows.entries.length < 6);
+      this.cleanupFuncs.push(workspaceWindows.subscribe(render));
       const handle = bindPanelGestures({
         panel, handle: panel.requireElementById('eve-xr-handle'), hint: panel.requireElementById('eve-xr-gesture-hint'),
         minScale: .18, maxScale: .34,

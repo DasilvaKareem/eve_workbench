@@ -17,6 +17,7 @@
 import { World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { EveConsoleSystem } from './eve-console-system.js';
+import { EveWindowSystem } from './eve-window-system.ts';
 import { mountWorkbench } from './eve-workbench.js';
 
 World.create(
@@ -24,6 +25,7 @@ World.create(
   projectOptions,
 ).then((world) => {
   world.registerSystem(EveConsoleSystem);
+  world.registerSystem(EveWindowSystem);
   mountWorkbench(world);
 }).catch((error) => {
   console.error('The XR workspace could not start:', error);

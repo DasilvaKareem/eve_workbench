@@ -1,0 +1,15 @@
+<style>
+  .window { flex-direction: column; width: 360; padding-top: 12; padding-right: 12; padding-bottom: 12; padding-left: 12; background-color: #15201c; border-color: #94aa8e; border-width: 1; border-radius: 14; gap: 8; }
+  .row { flex-direction: row; gap: 8; align-items: center; justify-content: space-between; }
+  .handle { width: 258; height: 40; flex-direction: column; justify-content: center; padding-left: 6; padding-right: 6; background-color: #25332e; border-color: #60756a; border-width: 1; border-radius: 6; cursor: pointer; }
+  .title { color: #d6f29a; font-size: 13; }
+  .content { flex-direction: column; width: 336; height: 270; gap: 8; overflow: scroll; padding-right: 10; scrollbar-width: 3; scrollbar-color: #94aa8e; }
+  .button { width: 62; height: 32; font-size: 11; color: #f5f5ee; background-color: #304137; align-items: center; justify-content: center; border-radius: 6; cursor: pointer; }
+  .hint { color: #bac9b9; font-size: 8; height: 22; }
+</style>
+<div class="window">
+  <div class="row"><div id="window-handle" class="handle"><div id="window-title" class="title">New window</div></div><button id="window-close" class="button">Close</button></div>
+  <div id="window-content" class="content"></div>
+  <div class="row"><button id="window-older" class="button">Up</button><div class="hint">Ask Eve below to fill this window</div><button id="window-newer" class="button">Down</button></div>
+  <div id="window-hint" class="hint">Pinch title to move / Two hands to resize</div>
+</div>
