@@ -19,6 +19,8 @@ import projectOptions from 'virtual:iwsdk-project';
 import { ControllerInputSystem } from './input.js';
 import { PanelSystem } from './panel.js';
 import { RobotSystem } from './robot.js';
+import { EveConsoleSystem } from './eve-console-system.js';
+import { mountWorkbench } from './eve-workbench.js';
 
 World.create(
   document.getElementById('scene-container') as HTMLDivElement,
@@ -27,4 +29,12 @@ World.create(
   world.registerSystem(RobotSystem);
   world.registerSystem(PanelSystem);
   world.registerSystem(ControllerInputSystem);
+  world.registerSystem(EveConsoleSystem);
+  mountWorkbench(world);
+}).catch((error) => {
+  console.error('The XR workspace could not start:', error);
+  const message = document.createElement('p');
+  message.style.cssText = 'position:fixed;inset:20%;color:white;font:16px/1.6 system-ui';
+  message.textContent = 'The 3D workspace could not start. Check that WebGL is enabled, then reload this page.';
+  document.body.append(message);
 });

@@ -1,0 +1,138 @@
+{
+  "version": "iwsdk.scene.v1",
+  "units": "meters",
+  "resources": {},
+  "nodes": [
+    {
+      "id": "cafe-floor",
+      "name": "Cafe Floor",
+      "content": {
+        "type": "asset",
+        "asset": "cafe-floor"
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ]
+      },
+      "components": {
+        "LocomotionEnvironment": {}
+      }
+    },
+    {
+      "id": "cafe-floorboards",
+      "name": "Oak floorboards",
+      "content": {
+        "type": "asset",
+        "asset": "cafe-floorboards"
+      }
+    },
+    {
+      "id": "cafe-architecture",
+      "name": "Cafe Architecture",
+      "content": {
+        "type": "asset",
+        "asset": "cafe-architecture"
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "cafe-library",
+      "name": "Cafe Library",
+      "content": {
+        "type": "asset",
+        "asset": "cafe-library"
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "cafe-counter",
+      "name": "Cafe Counter",
+      "content": {
+        "type": "asset",
+        "asset": "cafe-counter"
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "cafe-nook",
+      "name": "Cafe Nook",
+      "content": {
+        "type": "asset",
+        "asset": "cafe-nook"
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "cafe-details",
+      "name": "Cafe Details",
+      "content": {
+        "type": "asset",
+        "asset": "cafe-details"
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "cafe-garden",
+      "name": "Cafe Garden",
+      "content": {
+        "type": "asset",
+        "asset": "cafe-garden"
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "workbench",
+      "name": "Eve Workbench",
+      "content": {
+        "type": "asset",
+        "asset": "cafe-workbench"
+      },
+      "transform": {
+        "position": [
+          0,
+          0,
+          -1.9
+        ]
+      }
+    }
+  ]
+}

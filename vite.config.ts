@@ -32,8 +32,8 @@ process.env.IWSDK_DEV_OPEN ??= 'false';
 
 const port = Number.parseInt(process.env.PORT ?? '', 10) || 5173;
 
-export default defineConfig({
-  plugins: [eveProxy({ ...process.env, ...loadEnv('development', process.cwd(), '') }), iwsdkDev({ https: devHttps })],
+export default defineConfig(({ mode }) => ({
+  plugins: [eveProxy({ ...loadEnv(mode, process.cwd(), ''), ...process.env }), iwsdkDev({ https: devHttps })],
   server: {
     host: '0.0.0.0',
     port,
@@ -62,4 +62,4 @@ export default defineConfig({
   // deep paths, where a relative base resolves assets against the wrong
   // directory. Override with VITE_BASE_PATH when deploying under a subpath.
   base: process.env.VITE_BASE_PATH || '/',
-});
+}));

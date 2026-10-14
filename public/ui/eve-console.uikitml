@@ -1,0 +1,62 @@
+<style>
+  .console {
+    flex-direction: column;
+    width: 400;
+    padding-top: 14;
+    padding-right: 16;
+    padding-bottom: 14;
+    padding-left: 16;
+    background-color: #151d21;
+    border-color: #60756a;
+    border-width: 1;
+    border-radius: 12;
+    gap: 8;
+  }
+  .heading { color: #d6f29a; font-size: 20; height: 24; font-weight: 700; }
+  .status { color: #b6c7bd; font-size: 11; height: 16; }
+  .response { color: #f3f3ee; font-size: 13; line-height: 1.35; height: 150; }
+  .row { flex-direction: row; gap: 8; }
+  .button {
+    width: 116;
+    height: 36;
+    align-items: center;
+    justify-content: center;
+    background-color: #29352f;
+    border-color: #60756a;
+    border-width: 1;
+    border-radius: 6;
+    color: #e1efd7;
+    font-size: 12;
+    cursor: pointer;
+  }
+  .navigation { width: 112; height: 28; }
+  .page { width: 128; height: 28; justify-content: center; align-items: center; color: #b6c7bd; font-size: 11; }
+  .utility { height: 32; }
+  .wide { width: 178; height: 32; }
+  .hint { color: #b6c7bd; font-size: 10; line-height: 1.4; height: 28; }
+</style>
+<div class="console">
+  <div class="heading">eve / workbench</div>
+  <div id="eve-xr-status" class="status">Connecting to your agent</div>
+  <div id="eve-xr-response" class="response">Your conversation comes with you.</div>
+  <div class="row">
+    <button id="eve-xr-previous" class="button navigation">Previous</button>
+    <div id="eve-xr-page" class="page">1 / 1</div>
+    <button id="eve-xr-next-page" class="button navigation">Next page</button>
+  </div>
+  <div class="row">
+    <button id="eve-xr-plan" class="button">Plan my work</button>
+    <button id="eve-xr-tasks" class="button">Show tasks</button>
+    <button id="eve-xr-next" class="button">What's next?</button>
+  </div>
+  <div class="row">
+    <button id="eve-xr-range" class="button utility"><span id="eve-xr-range-label">Bring closer</span></button>
+    <button id="eve-xr-recenter" class="button utility">Place in front</button>
+    <button id="eve-xr-aim" class="button utility"><span id="eve-xr-aim-label">Aim: Hands</span></button>
+  </div>
+  <div class="row">
+    <button id="eve-xr-cancel" class="button wide">Cancel task</button>
+    <button id="eve-xr-exit" class="button wide">Back to browser</button>
+  </div>
+  <div id="eve-xr-hint" class="hint">Touch a button, or point and select. Right stick click: recenter.</div>
+</div>

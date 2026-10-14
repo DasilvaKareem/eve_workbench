@@ -21,13 +21,26 @@ can be deployed to Vercel.
 
 ## Current status
 
-The project currently contains the VR workspace foundation from the IWSDK v0
-template: a desk scene, interactive objects, controller input, and spatial UI.
-Connecting to an Eve agent and adding task management are planned; they are
-not implemented yet.
+The WebXR workspace now includes desktop chat and an in-headset Eve console,
+connected through a server-side proxy to a new agent project in `eve-backend/`.
+The agent provides a durable task board scoped to each conversation. Connection
+credentials and a running backend are required for live responses; see the
+[Eve setup and deployment guide](docs/eve-integration.md).
 
 ## What's included today
 
+- **Eve integration** — shared browser/XR conversations, streamed replies,
+  session replay and reconnects, task-board results, approval options, and task
+  cancellation. A Vercel Node Function keeps backend credentials server-side.
+- **New Eve backend** — instructions, model configuration, authenticated HTTP
+  channel, a typed durable task-board tool, and local/Vercel sandbox selection.
+- **An original library café environment** — oak floors, a timber-and-glass
+  roof, bookshelves, a coffee counter, a reading nook, and a surrounding garden.
+  `iwsdk.config.json` selects `public/scenes/cafe.iwsdk.scene.json`; the original
+  desk scene remains at `public/scenes/main.iwsdk.scene.json`. Static geometry
+  lives in `src/scene-assets/cafe.scene-asset.ts`, with repeated details instanced
+  and a separate continuous walkable floor. The robot, demo cube, plant, and
+  spatial panels are retained in the café.
 - **A VR desk scene** — environment, robot, plant, a grabbable demo cube, a
   spatial welcome panel and a controller-input HUD, composed declaratively in
   `public/scenes/main.iwsdk.scene.json`.

@@ -55,3 +55,8 @@ pids/
 
 # Agent scratch output
 artifacts/
+
+# Eve backend runtime and deployment output
+.eve/
+.output/
+.nitro/

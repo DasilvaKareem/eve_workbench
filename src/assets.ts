@@ -16,6 +16,10 @@
 
 import { AssetType, defineAssets } from '@iwsdk/core';
 import demoCube from './scene-assets/demo-cube.scene-asset.js';
+import {
+  cafeArchitecture, cafeCounter, cafeDetails, cafeFloor, cafeFloorboards, cafeGarden,
+  cafeLibrary, cafeNook, cafeWorkbench,
+} from './scene-assets/cafe.scene-asset.js';
 
 // Build every public URL from BASE_URL so the runtime, the managed editor, and
 // subpath builds all resolve the same file.
@@ -23,6 +27,20 @@ const publicAssetUrl = (filePath: string): string =>
   `${import.meta.env.BASE_URL}${filePath.replace(/^\/+/u, '')}`;
 
 export default defineAssets({
+  'eve-console': {
+    url: publicAssetUrl('ui/eve-console.uikitml'),
+    type: AssetType.UIKitML,
+    name: 'Eve Agent Console',
+  },
+  'cafe-floor': cafeFloor,
+  'cafe-floorboards': cafeFloorboards,
+  'cafe-architecture': cafeArchitecture,
+  'cafe-library': cafeLibrary,
+  'cafe-counter': cafeCounter,
+  'cafe-details': cafeDetails,
+  'cafe-garden': cafeGarden,
+  'cafe-nook': cafeNook,
+  'cafe-workbench': cafeWorkbench,
   'environment-desk': {
     url: publicAssetUrl('gltf/environmentDesk/environmentDesk.gltf'),
     type: AssetType.GLTF,

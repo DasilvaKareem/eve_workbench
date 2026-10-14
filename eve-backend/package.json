@@ -1,0 +1,30 @@
+{
+  "name": "eve-workbench-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "eve dev --no-ui --host 127.0.0.1 --port 2000 --no-default-extensions",
+    "build": "eve build",
+    "start": "eve start",
+    "deploy": "eve deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vercel/connect": "2.2.0",
+    "ai": "7.0.137",
+    "eve": "0.79.0",
+    "just-bash": "3.6.0",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "guarded-fetch": { "undici": "7.30.0" }
+  },
+  "engines": {
+    "node": "24.x"
+  }
+}

@@ -31,7 +31,7 @@ export async function serveEveRequest(req, res, env = process.env) {
         body = Buffer.concat(chunks);
       }
     }
-    const protocol = env.VERCEL ? 'https' : 'http';
+    const protocol = env.VERCEL || req.socket?.encrypted || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
     const request = new Request(`${protocol}://${req.headers.host || 'localhost'}${req.url}`, {
       method: req.method, headers: req.headers, body, signal: controller.signal,
     });

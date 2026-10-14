@@ -54,7 +54,7 @@ export async function handleEveRequest(request, env = process.env, fetcher = fet
     if (raw.length > 2048) return json({ error: 'Request too large.' }, 413);
     let body;
     try { body = JSON.parse(raw); } catch { return json({ error: 'Expected JSON.' }, 400); }
-    if (secret && (typeof body.accessCode !== 'string' || !equal(body.accessCode, secret))) {
+    if (!body || typeof body !== 'object' || (secret && (typeof body.accessCode !== 'string' || !equal(body.accessCode, secret)))) {
       return json({ error: 'That access code is incorrect.', code: 'invalid_access' }, 401);
     }
     const expiry = String(Date.now() + 8 * 60 * 60 * 1000);
