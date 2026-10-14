@@ -75,6 +75,7 @@ export function mountSpatialChat(viewport: UIKit.Container) {
   };
   const stopState = eve.subscribe(state => {
     if (viewport.scrollPosition) stickToBottom = bottom() - viewport.scrollPosition.peek()[1] < 12;
+    if (state.messages.some(message => message.panel && cards.get(message.id)?.key !== JSON.stringify(message.panel))) stickToBottom = true;
     viewport.setProperties({ display: state.messages.length ? 'flex' : 'none' });
     const ids = new Set(state.messages.map(message => message.id));
     for (const [id, card] of cards) if (!ids.has(id)) { card.dispose(); cards.delete(id); }

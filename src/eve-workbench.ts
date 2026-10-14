@@ -70,7 +70,7 @@ export function mountWorkbench(world: World) {
     const text = state.error || (state.phase === 'setup' ? 'Start the Eve backend and configure your connection. See docs/eve-integration.md in this project.' : '');
     if (text !== lastError) { notice.textContent = text; lastError = text; }
     notice.hidden = !text;
-    const nearBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80;
+    let nearBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80;
     for (const [id, element] of transcript) {
       if (!state.messages.some(message => message.id === id)) { panelCards.get(id)?.dispose(); panelCards.delete(id); element.remove(); transcript.delete(id); }
     }
@@ -86,6 +86,7 @@ export function mountWorkbench(world: World) {
       if (message.panel) {
         const key = JSON.stringify(message.panel);
         if (panelCards.get(message.id)?.key !== key) {
+          nearBottom = true;
           panelCards.get(message.id)?.dispose(); content.replaceChildren();
           const dispose = mountInlinePanel(content as HTMLElement, message.panel, () => { if (nearBottom) messages.scrollTop = messages.scrollHeight; });
           panelCards.set(message.id, { key, dispose });

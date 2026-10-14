@@ -23,7 +23,10 @@ test('real native UIKit chat contains requests, rich result cards, and replies i
   const result = value => eve.applyEvent({ type: 'action.result', data: { status: 'completed', result: { toolName: 'workbench_panel', output: { panels: value } } } });
   try {
     eve.applyEvent({ type: 'message.received', data: { message: 'Show my project', turnId: 't' }, meta: { id: 'question' } });
+    viewport.maxScrollPosition.value = [0, 500];
+    viewport.scrollPosition.value = [0, 0];
     result([panel]);
+    assert.equal(viewport.scrollPosition.peek()[1], 500, 'a fresh result scrolls into view');
     eve.applyEvent({ type: 'message.completed', data: { message: 'Here it is.', turnId: 't', stepIndex: 1 } });
     assert.equal(viewport.children.length, 3);
     assert.ok(texts(viewport.children[0]).includes('Show my project'));
