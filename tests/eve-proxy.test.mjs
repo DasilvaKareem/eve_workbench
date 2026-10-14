@@ -43,6 +43,23 @@ test('access code, malformed JSON, and forged cookies are rejected', async () =>
   assert.equal(response.status, 401);
 });
 
+test('a short workspace code unlocks production and rotating it invalidates old cookies', async () => {
+  const settings = { ...env, WORKBENCH_ACCESS_KEY: 'test-code' };
+  const access = await handleEveRequest(request('/access', {
+    method: 'POST', body: JSON.stringify({ accessCode: settings.WORKBENCH_ACCESS_KEY }),
+  }), settings);
+  assert.equal(access.status, 200);
+  const headers = { cookie: access.headers.get('set-cookie').split(';')[0] };
+  const health = await handleEveRequest(request('/health', { headers }), settings,
+    async () => Response.json({ ok: true }));
+  assert.equal(health.status, 200);
+  const status = await handleEveRequest(request('/status'), settings);
+  assert.equal((await status.json()).configured, true);
+  const previous = await handleEveRequest(request('/health', { headers: { cookie: await cookie() } }), settings,
+    () => assert.fail('old cookies must not reach the backend'));
+  assert.equal(previous.status, 401);
+});
+
 test('proxy forwards only configured service credentials and supported routes', async () => {
   const access = await cookie();
   const response = await handleEveRequest(request('/session', { method: 'POST', headers: { cookie: access, authorization: 'Bearer browser-value', 'content-type': 'application/json' }, body: '{"message":"hello"}' }), env, async (url, options) => {

@@ -104,7 +104,7 @@ preset and `vercel.json`. Set these **server-only** environment variables:
 | --- | --- |
 | `EVE_AGENT_URL` | Backend's canonical HTTPS deployment origin, without `/eve/v1`. |
 | `EVE_API_KEY` | Same long random secret as the backend. |
-| `WORKBENCH_ACCESS_KEY` | A separate private workspace code, at least 16 characters. |
+| `WORKBENCH_ACCESS_KEY` | A separate private workspace code, at least 8 characters. |
 
 No secret should have a `VITE_` prefix. Unlock the frontend with the workspace
 code; the server issues an eight-hour HttpOnly, Secure, SameSite cookie. The

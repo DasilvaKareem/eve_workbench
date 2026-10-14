@@ -46,8 +46,8 @@ export async function handleEveRequest(request, env = process.env, fetcher = fet
   }
 
   if (path === '/access' && request.method === 'POST') {
-    if (production && secret.length < 16) {
-      return json({ error: 'Set WORKBENCH_ACCESS_KEY to at least 16 characters on the frontend deployment.', code: 'setup_required' }, 503);
+    if (production && secret.length < 8) {
+      return json({ error: 'Set WORKBENCH_ACCESS_KEY to at least 8 characters on the frontend deployment.', code: 'setup_required' }, 503);
     }
     if (Number(request.headers.get('content-length')) > 2048) return json({ error: 'Request too large.' }, 413);
     const raw = await request.text();
@@ -66,12 +66,12 @@ export async function handleEveRequest(request, env = process.env, fetcher = fet
   }
 
   if (path === '/status' && request.method === 'GET') {
-    return json({ configured: Boolean(backend && (!production || secret.length >= 16)), authenticated,
+    return json({ configured: Boolean(backend && (!production || secret.length >= 8)), authenticated,
       authRequired: Boolean(secret) || Boolean(production) });
   }
 
   if (!authenticated) return json({ error: 'Unlock the workbench first.', code: 'authentication_required' }, 401);
-  if (!backend || (production && secret.length < 16)) {
+  if (!backend || (production && secret.length < 8)) {
     return json({ error: 'Configure EVE_AGENT_URL and WORKBENCH_ACCESS_KEY on the frontend deployment.', code: 'setup_required' }, 503);
   }
 
