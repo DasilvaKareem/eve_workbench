@@ -12,3 +12,4 @@ eve-backend/*
 !eve-backend/shared
 !eve-backend/shared/**
 game
+submission
