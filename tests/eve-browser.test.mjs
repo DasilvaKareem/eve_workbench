@@ -30,6 +30,21 @@ function client() {
     patch(value) { Object.assign(this.state, value); for (const fn of listeners) fn(this.state); } };
 }
 
+test('default browser viewer transport preserves the browser fetch receiver', async t => {
+  t.mock.method(globalThis, 'fetch', async function (path) {
+    assert.equal(this, globalThis, 'native fetch must receive the browser global');
+    assert.equal(path, '/api/eve/session/session_one/browser/frame');
+    return Response.json({ connected: true, frame, url: 'https://example.com' });
+  });
+  const watch = new BrowserWatch(client());
+  try {
+    watch.setActive('desktop', true);
+    await tick();
+    assert.equal(watch.state.connected, true);
+    assert.deepEqual(watch.state.frame, frame);
+  } finally { watch.dispose(); }
+});
+
 test('desktop and XR share one frame request; hiding both aborts it', async () => {
   const source = client(); let calls = 0, signal;
   const watch = new BrowserWatch(source, async (_, options) => {

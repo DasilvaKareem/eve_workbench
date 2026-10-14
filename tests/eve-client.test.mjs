@@ -4,6 +4,24 @@ import { EveClient } from '../src/eve-client.ts';
 
 const event = (type, data, id) => ({ type, data, meta: { id } });
 
+test('default chat transport preserves the browser fetch receiver', async t => {
+  const paths = [];
+  t.mock.method(globalThis, 'fetch', async function (path) {
+    assert.equal(this, globalThis, 'native fetch must receive the browser global');
+    paths.push(path);
+    if (path === '/api/eve/status') return Response.json({ configured: true, authenticated: true });
+    if (path === '/api/eve/health') return Response.json({ ok: true, status: 'ready' });
+    assert.fail(`Unexpected request: ${path}`);
+  });
+  const client = new EveClient();
+  try {
+    await client.connect();
+    assert.equal(client.state.phase, 'ready');
+    assert.equal(client.state.error, null);
+    assert.deepEqual(paths, ['/api/eve/status', '/api/eve/health']);
+  } finally { client.dispose(); }
+});
+
 test('browser timeline uses authoritative call ids, hides field values, and stays bounded', () => {
   const client = new EveClient();
   client.applyEvent(event('actions.requested', { turnId: 'turn_1', actions: [{ toolName: 'browser', callId: 'fill_1', input: { operation: 'fill', text: 'a-private-password' } }] }));

@@ -15,7 +15,7 @@ export class BrowserWatch {
   private disposed = false;
   private fetcher: typeof fetch;
 
-  constructor(client: EveClient, fetcher: typeof fetch = fetch) {
+  constructor(client: EveClient, fetcher: typeof fetch = globalThis.fetch.bind(globalThis)) {
     this.fetcher = fetcher;
     this.stopEve = client.subscribe(state => {
       const changed = this.state.sessionId !== state.sessionId;

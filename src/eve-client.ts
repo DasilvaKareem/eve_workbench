@@ -39,7 +39,7 @@ export class EveClient {
   private terminal = false;
   private fetcher: typeof fetch;
 
-  constructor(fetcher: typeof fetch = fetch) { this.fetcher = fetcher; }
+  constructor(fetcher: typeof fetch = globalThis.fetch.bind(globalThis)) { this.fetcher = fetcher; }
 
   subscribe(listener: (state: EveState) => void): () => void {
     this.listeners.add(listener); listener(this.state);
