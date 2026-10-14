@@ -69,7 +69,8 @@ test('proxy and client publish text, speech sentences, tasks and generated panel
     emit('session.waiting', {});
     await ready;
     assert.equal(client.state.messages.filter(message => message.role === 'assistant').length, 1);
-    assert.match(client.state.messages.at(-1).text, /^Saved/);
+    assert.match(client.state.messages.find(message => message.role === 'assistant').text, /^Saved/);
+    assert.equal(client.state.messages.find(message => message.role === 'panel').panel.id, 'review');
     assert.ok(paths.includes('/eve/v1/session/wrun_live/stream'));
     assert.equal(streamClosed, false);
   } finally { voice.dispose(); client.dispose(); }

@@ -10,15 +10,17 @@ control. Pinch/drag the title to move the prompt; use two pointers to resize.
 Right controller thumbstick click recalls the prompt to your current tracked
 position. It stays anchored afterward. Exit XR returns to the browser.
 
-Replies and sending/error status appear above the prompt. Long replies have
-Previous/Next controls. While Eve is working, Send becomes Stop. On a connection
-error, Retry reconnects. Ended conversations recover into a fresh session.
+The conversation, replies, and generated result cards appear together above the
+prompt. Drag inside the conversation or use Older/Newer to scroll it. A result
+card is inserted at the point where Eve creates it, preserving the request and
+follow-up reply around it. Tables, metrics, charts, chart data, and actions are
+inside that card. There are no panel tabs, disclosure menus, or separate result
+screens. The chat title moves/resizes the whole conversation.
 
-Ask Eve, for example: **Create a panel with my project checklist.** A successful
-workbench_panel tool result opens the panel automatically in XR and in the
-browser. Drag its title to move it, use two pointers to resize, and Close to hide.
-Page controls and panel switching appear only when needed. Empty panels and the
-old task dashboard/menu do not appear in the initial workspace.
+Ask Eve, for example: **Show a project checklist panel in this chat.** A successful
+workbench_panel result inserts the card immediately. Updating the same panel id
+updates that card in place. While Eve works, Send becomes Stop. Retry reconnects
+on a connection error, and ended sessions recover into a fresh conversation.
 
 Type checking, real UIKitML parsing, native input wiring, session recovery,
 stream reconnection, and panel rendering data are covered by automated checks.

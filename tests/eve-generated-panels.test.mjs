@@ -71,7 +71,29 @@ test('the real ECharts renderer accepts generated bars and lines and preserves n
   } finally { chart.dispose(); }
 });
 
-test('the real UIKitML parser accepts the generated panel template and native follow-up buttons', () => {
-  const source = readFileSync(new URL('../public/ui/eve-generated.uikitml', import.meta.url), 'utf8');
-  assert.doesNotThrow(() => parseUIKitMLSource(source, 'http://localhost/ui/eve-generated.uikitml'));
+test('the real UIKitML parser accepts the chat viewport that contains inline panels', () => {
+  const source = readFileSync(new URL('../public/ui/eve-console.uikitml', import.meta.url), 'utf8');
+  assert.doesNotThrow(() => parseUIKitMLSource(source, 'http://localhost/ui/eve-console.uikitml'));
+});
+
+test('tool results appear chronologically as inline chat cards and update in place', () => {
+  const client = new EveClient();
+  const panelA = { ...fixture(), id: 'first', title: 'First result' };
+  const panelB = { ...fixture(), id: 'second', title: 'Second result' };
+  const result = panels => client.applyEvent({ type: 'action.result', data: { status: 'completed', turnId: 'turn_panels',
+    result: { toolName: 'workbench_panel', output: { panels } } } });
+  try {
+    client.state.messages.push({ id: 'question', role: 'user', text: 'Show me two comparisons' });
+    result([panelA]);
+    client.applyEvent({ type: 'message.completed', data: { turnId: 'turn_panels', stepIndex: 1, message: 'Here is your first result.' } });
+    result([panelA, panelB]);
+    assert.deepEqual(client.state.messages.map(message => message.id), ['question', 'panel:first', 'turn_panels:1', 'panel:second']);
+    assert.equal(client.state.messages[1].panel.blocks[2].type, 'table');
+    assert.equal(client.state.messages[3].panel.blocks[3].type, 'chart');
+    result([{ ...panelA, title: 'Updated first result' }, panelB]);
+    assert.equal(client.state.messages[1].panel.title, 'Updated first result');
+    assert.equal(client.state.messages.filter(message => message.id === 'panel:first').length, 1);
+    result([panelB]);
+    assert.deepEqual(client.state.messages.map(message => message.id), ['question', 'turn_panels:1', 'panel:second']);
+  } finally { client.dispose(); }
 });

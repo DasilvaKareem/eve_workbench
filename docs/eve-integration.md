@@ -140,7 +140,7 @@ limit; clients reconnect from the absolute event count.
   turn is still running. Charts consume complete tool results, not partial tool
   arguments. The backend instructions describe these controls to Claude.
 - The `workbench_panel` tool creates, replaces, lists, and removes durable panels.
-  Its complete snapshots stream to the browser and native **Eve panels** surface.
+  Its complete snapshots become inline cards in the browser and native XR chat.
   Panels compose text, metrics, tables, bar/line charts, and up to three follow-up
   prompt buttons. Six panels are retained per conversation. Renderers validate
   the same bounded data format and never execute model-authored markup or code.

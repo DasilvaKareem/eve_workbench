@@ -3,7 +3,7 @@ import { VisibilityState } from '@iwsdk/core';
 import { eve, type EveState } from './eve-client.js';
 import { eveVoice } from './eve-voice.js';
 import { promptDraft } from './eve-prompt.js';
-import { mountGeneratedPanels } from './eve-generated-panels.js';
+import { mountInlinePanel } from './eve-generated-panels.js';
 import './eve-workbench.css';
 
 const icons = {
@@ -24,7 +24,6 @@ export function mountWorkbench(world: World) {
       <button class="eve-xr" type="button">${icon('headset')} Enter XR</button>
     </header>
     <section class="eve-console" aria-label="Eve">
-      <div class="eve-created-panels" hidden><details class="eve-generated-board"><summary>Panels</summary></details></div>
       <div class="eve-messages" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text"></div>
       <div class="eve-notice" role="status" hidden></div>
       <form class="eve-unlock" hidden><label for="eve-access">Unlock your workspace</label><div><input id="eve-access" type="password" autocomplete="current-password" placeholder="Access code" required><button type="submit">Unlock</button></div></form>
@@ -48,6 +47,7 @@ export function mountWorkbench(world: World) {
   const unlock = find<HTMLFormElement>('.eve-unlock');
   const notice = find<HTMLDivElement>('.eve-notice');
   const transcript = new Map<string, HTMLElement>();
+  const panelCards = new Map<string, { key: string; dispose: () => void }>();
   const launch = find<HTMLButtonElement>('.eve-xr');
   let lastError: string | null = null;
   let lastInputs = '';
@@ -57,7 +57,6 @@ export function mountWorkbench(world: World) {
     const available = ['ready', 'waiting'].includes(state.phase);
     find('.eve-status').textContent = state.activity;
     shell.dataset.phase = state.phase;
-    find('.eve-created-panels').hidden = !state.panels.length;
     textarea.disabled = !available;
     find<HTMLButtonElement>('.eve-send').disabled = !available || !textarea.value.trim();
     find('.eve-send').hidden = state.phase === 'working';
@@ -73,7 +72,7 @@ export function mountWorkbench(world: World) {
     notice.hidden = !text;
     const nearBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80;
     for (const [id, element] of transcript) {
-      if (!state.messages.some(message => message.id === id)) { element.remove(); transcript.delete(id); }
+      if (!state.messages.some(message => message.id === id)) { panelCards.get(id)?.dispose(); panelCards.delete(id); element.remove(); transcript.delete(id); }
     }
     messages.querySelector('.eve-empty')?.remove();
     for (const message of state.messages) {
@@ -84,7 +83,14 @@ export function mountWorkbench(world: World) {
         const content = document.createElement('div'); item.append(label, content); transcript.set(message.id, item); messages.append(item);
       }
       const content = item.lastElementChild!;
-      if (content.textContent !== message.text) content.textContent = message.text;
+      if (message.panel) {
+        const key = JSON.stringify(message.panel);
+        if (panelCards.get(message.id)?.key !== key) {
+          panelCards.get(message.id)?.dispose(); content.replaceChildren();
+          const dispose = mountInlinePanel(content as HTMLElement, message.panel, () => { if (nearBottom) messages.scrollTop = messages.scrollHeight; });
+          panelCards.set(message.id, { key, dispose });
+        }
+      } else if (content.textContent !== message.text) content.textContent = message.text;
     }
     if (nearBottom) messages.scrollTop = messages.scrollHeight;
     const inputKey = JSON.stringify(state.inputs);
@@ -101,7 +107,6 @@ export function mountWorkbench(world: World) {
     }
   };
   const unsubscribe = eve.subscribe(render);
-  const stopPanels = mountGeneratedPanels(find<HTMLDetailsElement>('.eve-generated-board'));
   find('.eve-mic').addEventListener('click', () => textarea.focus({ preventScroll: true }));
   const stopDraft = promptDraft.subscribe(text => { if (textarea.value !== text) textarea.value = text; render(eve.state); });
   textarea.addEventListener('input', () => promptDraft.set(textarea.value));
@@ -135,5 +140,5 @@ export function mountWorkbench(world: World) {
   });
   if (!world.xrEnabled) { launch.disabled = true; launch.title = 'This browser does not currently offer an immersive XR session.'; }
   void eve.connect();
-  return () => { unsubscribe(); stopPanels(); stopDraft(); eveVoice.stop(); stopVisibility(); shell.remove(); };
+  return () => { unsubscribe(); for (const card of panelCards.values()) card.dispose(); stopDraft(); eveVoice.stop(); stopVisibility(); shell.remove(); };
 }

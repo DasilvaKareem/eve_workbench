@@ -1,6 +1,6 @@
 import { createSystem, InputComponent, PokeInteractable, Quaternion, RayInteractable, UIKitMLAsset, Vector3, VisibilityState, type UIKit } from '@iwsdk/core';
 import { eve } from './eve-client.ts';
-import { paginatePanelText } from './eve-panel-content.ts';
+import { mountSpatialChat } from './eve-spatial-chat.ts';
 import { eveVoice } from './eve-voice.ts';
 import { bindNativeInput } from './eve-native-input.ts';
 import { promptDraft } from './eve-prompt.ts';
@@ -31,10 +31,8 @@ export class EveConsoleSystem extends createSystem({}) {
       panel.visible = false;
       const input = panel.requireElementById<UIKit.Textarea>('eve-xr-prompt');
       const status = panel.requireElementById<UIKit.Text>('eve-xr-status');
-      const reply = panel.requireElementById('eve-xr-reply');
-      const response = panel.requireElementById<UIKit.Text>('eve-xr-response');
-      let page = 0, lastMessage = '';
-      let pages = [''];
+      const chat = mountSpatialChat(panel.requireElementById<UIKit.Container>('eve-xr-transcript'));
+      this.cleanupFuncs.push(() => chat.dispose());
       const ready = () => ['ready', 'waiting'].includes(eve.state.phase);
       const nativeInput = bindNativeInput(input.element, value => promptDraft.set(value));
       input.setProperties({ onValueChange: (value: string) => promptDraft.set(value) });
@@ -67,22 +65,11 @@ export class EveConsoleSystem extends createSystem({}) {
         this.cleanupFuncs.push(() => { for (const [name, listener] of events) button.removeEventListener(name, listener); });
         paint.push(refresh);
       };
-      const showReply = () => {
-        const latest = eve.state.messages[eve.state.messages.length - 1];
-        const text = eve.state.error || (latest?.role === 'user' ? `You: ${latest.text}\n\n${eve.state.activity}` : latest?.text) || '';
-        if (latest?.id !== lastMessage) { this.handle?.cancel(); lastMessage = latest?.id || ''; page = 0; }
-        pages = paginatePanelText(text, 44, 7);
-        page = Math.max(0, Math.min(page, pages.length - 1));
-        reply.setProperties({ display: text ? 'flex' : 'none' });
-        response.setProperties({ text: pages[page] });
-        panel.requireElementById('eve-xr-pages').setProperties({ display: pages.length > 1 ? 'flex' : 'none' });
-        panel.requireElementById<UIKit.Text>('eve-xr-page').setProperties({ text: `${page + 1} / ${pages.length}\nPinch + slide` });
-      };
       const render = () => {
+        panel.requireElementById('eve-xr-scroll').setProperties({ display: eve.state.messages.length ? 'flex' : 'none' });
         input.setProperties({ disabled: !ready() });
         status.setProperties({ text: eve.state.phase === 'locked' ? 'Unlock in browser first' : eve.state.activity });
         panel.requireElementById<UIKit.Text>('eve-xr-send-label').setProperties({ text: eve.state.phase === 'working' ? 'Stop' : eve.state.phase === 'error' ? 'Retry' : 'Send' });
-        showReply();
         for (const refresh of paint) refresh();
       };
       const send = () => {
@@ -97,15 +84,13 @@ export class EveConsoleSystem extends createSystem({}) {
       bind('eve-xr-send', send, () => ['working', 'error'].includes(eve.state.phase) || (ready() && Boolean(promptDraft.text.trim())));
       bind('eve-xr-mic', onField, ready);
       bind('eve-xr-exit', () => { void this.world.exitXR(); });
-      bind('eve-xr-previous', () => { page--; render(); }, () => page > 0);
-      bind('eve-xr-next-page', () => { page++; render(); }, () => page < pages.length - 1);
+      bind('eve-xr-previous', () => chat.scroll(-150));
+      bind('eve-xr-next-page', () => chat.scroll(150));
       const handle = bindPanelGestures({
         panel, handle: panel.requireElementById('eve-xr-handle'), hint: panel.requireElementById('eve-xr-gesture-hint'),
         minScale: .18, maxScale: .34,
         isActive: () => panel.visible && !this.pendingPlacement && this.world.visibilityState.peek() === VisibilityState.Visible,
-        navigation: { surface: panel.requireElementById('eve-xr-page'),
-          previous: () => { page--; render(); }, next: () => { page++; render(); },
-          canPrevious: () => page > 0, canNext: () => page < pages.length - 1 },
+
       });
       this.handle = handle;
       this.cleanupFuncs.push(() => handle.dispose());

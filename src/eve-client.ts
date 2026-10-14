@@ -1,7 +1,7 @@
 export type Phase = 'connecting' | 'setup' | 'locked' | 'ready' | 'working' | 'waiting' | 'error';
 import { parseWorkbenchPanels, type WorkbenchPanel } from '../shared/workbench-panels.ts';
 
-export interface Message { id: string; role: 'user' | 'assistant'; text: string; pending?: boolean }
+export interface Message { id: string; role: 'user' | 'assistant' | 'panel'; text: string; pending?: boolean; panel?: WorkbenchPanel }
 export interface InputRequest { id: string; title: string; options: { id: string; label: string }[] }
 export interface BrowserAction { id: string; tool: string; status: 'running' | 'completed' | 'failed' | 'cancelled' }
 export interface EveState {
@@ -280,7 +280,17 @@ export class EveClient {
         }
         if (data.status === 'completed' && !result?.isError && result?.toolName === 'workbench_panel') {
           const panels = parseWorkbenchPanels(result.output?.panels);
-          if (panels) this.state.panels = panels;
+          if (panels) {
+            this.state.panels = panels;
+            const ids = new Set(panels.map(panel => `panel:${panel.id}`));
+            this.state.messages = this.state.messages.filter(message => message.role !== 'panel' || ids.has(message.id));
+            for (const panel of panels) {
+              const id = `panel:${panel.id}`;
+              const existing = this.state.messages.find(message => message.id === id);
+              if (existing) { existing.panel = panel; existing.text = panel.title; }
+              else this.state.messages.push({ id, role: 'panel', text: panel.title, panel });
+            }
+          }
         }
         break;
       }

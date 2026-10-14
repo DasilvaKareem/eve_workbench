@@ -37,7 +37,7 @@ credentials and a running backend are required for live responses; see the
 - **Claude-generated panels** — ask Eve to show a comparison, dashboard, or
   chart. The `workbench_panel` tool saves up to six panels per conversation,
   composing text, metric cards, tables, and bar/line charts with follow-up
-  buttons. Open **Eve panels** in the browser or headset. Native spatial pages
+  buttons. Results appear inline in the chat in both browser and headset. Native chat cards
   preserve complete text and chart data, and buttons send ordinary messages.
 - **Watch Eve's browser** — desktop and anchored headset screens show actual
   sandbox browser frames, recent actions, and task cancellation. Viewing is
@@ -61,7 +61,7 @@ credentials and a running backend are required for live responses; see the
   desk scene remains at `public/scenes/main.iwsdk.scene.json`. Static geometry
   lives in `src/scene-assets/cafe.scene-asset.ts`, with repeated details instanced
   and a separate continuous walkable floor. The robot, demo cube, plant, and
-  spatial panels are retained in the café.
+  inline conversation cards are retained in the café.
 - **A VR desk scene** — environment, robot, plant, a grabbable demo cube, a
   spatial welcome panel and a controller-input HUD, composed declaratively in
   `public/scenes/main.iwsdk.scene.json`.
