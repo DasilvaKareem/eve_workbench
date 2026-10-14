@@ -76,8 +76,9 @@ export async function handleEveRequest(request, env = process.env, fetcher = fet
   }
 
   const isStream = path.endsWith('/stream');
+  const isBrowser = /^\/session\/[A-Za-z0-9_-]{1,200}\/browser\/frame$/.test(path);
   const isSession = SESSION_ROUTE.test(path);
-  const allowed = request.method === 'GET' ? (path === '/health' || path === '/info' || (isSession && isStream))
+  const allowed = request.method === 'GET' ? (isBrowser || path === '/health' || path === '/info' || (isSession && isStream))
     : request.method === 'POST' && isSession && !isStream;
   if (!allowed) return json({ error: 'Unknown Eve route.' }, 404);
 
@@ -86,7 +87,7 @@ export async function handleEveRequest(request, env = process.env, fetcher = fet
     target = new URL(backend);
     if (target.username || target.password || target.search || target.hash) throw new Error();
     if (target.protocol !== 'https:' && !(target.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(target.hostname))) throw new Error();
-    target.pathname = `${target.pathname.replace(/\/$/, '')}/eve/v1${path}`;
+    target.pathname = `${target.pathname.replace(/\/$/, '')}${isBrowser ? `/workbench/browser/${path.split('/')[2]}/frame` : `/eve/v1${path}`}`;
     if (isStream) {
       const startIndex = url.searchParams.get('startIndex');
       if (startIndex !== null) {

@@ -1,6 +1,8 @@
 import type { World } from '@iwsdk/core';
 import { VisibilityState } from '@iwsdk/core';
 import { eve, type EveState } from './eve-client.js';
+import { mountTaskDashboard } from './eve-task-dashboard.js';
+import { mountBrowserPanel } from './eve-browser-panel.js';
 import './eve-workbench.css';
 
 const icons = {
@@ -28,7 +30,8 @@ export function mountWorkbench(world: World) {
         <div class="eve-notice" role="status" hidden></div>
         <form class="eve-unlock" hidden><label for="eve-access">Unlock your private workspace</label><div><input id="eve-access" type="password" autocomplete="current-password" placeholder="Workspace access code" required><button type="submit">Unlock</button></div></form>
         <div class="eve-inputs"></div>
-        <details class="eve-task-board" hidden><summary>Task board</summary><ul></ul></details>
+        <details class="eve-task-board"><summary>Task board</summary><ul></ul></details>
+        <details class="eve-browser-board"><summary>Watch Eve’s browser</summary></details>
         <div class="eve-suggestions"><button type="button" data-prompt="Help me plan my next project. Ask me what I want to build.">Plan a project ${icon('arrow')}</button><button type="button" data-prompt="Show my task board and suggest what I should focus on next.">Find my focus ${icon('arrow')}</button></div>
         <form class="eve-composer"><label class="eve-sr-only" for="eve-message">Message Eve</label><textarea id="eve-message" rows="2" maxlength="12000" placeholder="What are we working on?" required></textarea><div class="eve-composer-footer"><span>Connected to your Eve agent</span><button class="eve-mic eve-icon-button" type="button" title="Dictate a message" aria-label="Dictate a message" hidden>${icon('mic')}</button><button class="eve-send" type="submit" title="Send message" aria-label="Send message">${icon('arrow')}</button><button class="eve-stop eve-icon-button" type="button" title="Cancel task" aria-label="Cancel task" hidden>${icon('stop')}</button></div></form>
         <div class="eve-console-footer"><span class="eve-connection-dot"></span><span class="eve-session">DURABLE CONVERSATION</span><button class="eve-retry" type="button" hidden>Retry connection</button></div>
@@ -92,8 +95,7 @@ export function mountWorkbench(world: World) {
     if (taskKey !== lastTasks) {
       lastTasks = taskKey;
       const board = find<HTMLDetailsElement>('.eve-task-board');
-      board.hidden = !state.tasks.length;
-      board.querySelector('summary')!.textContent = `Task board · ${state.tasks.filter(task => task.status === 'done').length}/${state.tasks.length} complete`;
+      board.querySelector('summary')!.textContent = state.tasks.length ? `Task board · ${state.tasks.filter(task => task.status === 'done').length}/${state.tasks.length} complete` : 'Task board · No tasks yet';
       const list = board.querySelector('ul')!; list.replaceChildren();
       for (const task of state.tasks) {
         const item = document.createElement('li');
@@ -115,6 +117,8 @@ export function mountWorkbench(world: World) {
     }
   };
   const unsubscribe = eve.subscribe(render);
+  const stopDashboard = mountTaskDashboard(find<HTMLDetailsElement>('.eve-task-board'));
+  const stopBrowser = mountBrowserPanel(find<HTMLDetailsElement>('.eve-browser-board'), world);
   textarea.addEventListener('input', () => { find<HTMLButtonElement>('.eve-send').disabled = !textarea.value.trim() || !['ready', 'waiting'].includes(eve.state.phase); });
   composer.addEventListener('submit', event => {
     event.preventDefault();
@@ -153,5 +157,5 @@ export function mountWorkbench(world: World) {
   });
   if (!world.xrEnabled) { launch.disabled = true; launch.title = 'This browser does not currently offer an immersive XR session.'; }
   void eve.connect();
-  return () => { unsubscribe(); stopVisibility(); shell.remove(); };
+  return () => { unsubscribe(); stopDashboard(); stopBrowser(); stopVisibility(); shell.remove(); };
 }

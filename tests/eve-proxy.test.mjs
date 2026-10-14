@@ -12,6 +12,19 @@ async function cookie() {
   return response.headers.get('set-cookie').split(';')[0];
 }
 
+test('browser frames use the same private access gate and a fixed backend route', async () => {
+  const locked = await handleEveRequest(request('/session/wrun_test/browser/frame'), env, () => assert.fail('must authenticate first'));
+  assert.equal(locked.status, 401);
+  const response = await handleEveRequest(request('/session/wrun_test/browser/frame?url=https://untrusted.example', { headers: { cookie: await cookie() } }), env, async (url, options) => {
+    assert.equal(url.href, 'https://agent.example/workbench/browser/wrun_test/frame');
+    assert.equal(options.headers.authorization, `Bearer ${env.EVE_API_KEY}`);
+    return Response.json({ connected: true, frame: null });
+  });
+  assert.equal(response.status, 200);
+  const input = await handleEveRequest(request('/session/wrun_test/browser/frame', { method: 'POST', body: '{}', headers: { cookie: await cookie() } }), env);
+  assert.equal(input.status, 404);
+});
+
 test('production fails closed and status never discloses secrets', async () => {
   const status = await handleEveRequest(request('/status'), env);
   assert.deepEqual(await status.json(), { configured: true, authenticated: false, authRequired: true });

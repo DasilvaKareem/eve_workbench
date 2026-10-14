@@ -4,6 +4,20 @@ import { EveClient } from '../src/eve-client.ts';
 
 const event = (type, data, id) => ({ type, data, meta: { id } });
 
+test('browser timeline uses authoritative call ids, hides field values, and stays bounded', () => {
+  const client = new EveClient();
+  client.applyEvent(event('actions.requested', { turnId: 'turn_1', actions: [{ toolName: 'browser', callId: 'fill_1', input: { operation: 'fill', text: 'a-private-password' } }] }));
+  assert.deepEqual(client.state.browserActions, [{ id: 'turn_1:fill_1', tool: 'fill', status: 'running' }]);
+  assert.ok(!JSON.stringify(client.state.browserActions).includes('a-private-password'));
+  client.applyEvent(event('action.result', { turnId: 'turn_1', status: 'completed', result: { callId: 'fill_1', toolName: 'browser' } }));
+  assert.equal(client.state.browserActions[0].status, 'completed');
+  for (let index = 0; index < 35; index++) client.applyEvent(event('actions.requested', { turnId: 'turn_1', actions: [{ toolName: 'browser', callId: `call_${index}`, input: { operation: 'snapshot' } }] }));
+  assert.equal(client.state.browserActions.length, 30);
+  client.applyEvent(event('turn.cancelled', {}));
+  assert.ok(client.state.browserActions.every(item => item.status === 'cancelled'));
+  client.dispose();
+});
+
 test('stream deltas and authoritative completion form one message despite changing sequence', () => {
   const client = new EveClient();
   client.applyEvent(event('turn.started', { turnId: 'turn_0', sequence: 0 }));

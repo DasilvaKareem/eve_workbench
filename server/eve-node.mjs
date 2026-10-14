@@ -32,7 +32,13 @@ export async function serveEveRequest(req, res, env = process.env) {
       }
     }
     const protocol = env.VERCEL || req.socket?.encrypted || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-    const request = new Request(`${protocol}://${req.headers.host || 'localhost'}${req.url}`, {
+    const url = new URL(`${protocol}://${req.headers.host || 'localhost'}${req.url}`);
+    const routedPath = url.searchParams.get('__eve_path');
+    if (routedPath !== null) {
+      url.pathname = `/api/eve/${routedPath}`;
+      url.searchParams.delete('__eve_path');
+    }
+    const request = new Request(url, {
       method: req.method, headers: req.headers, body, signal: controller.signal,
     });
     const response = await handleEveRequest(request, env);

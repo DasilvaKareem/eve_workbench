@@ -27,3 +27,28 @@ test('Node adapter preserves HTTPS origins and streams an upstream response', as
     assert.deepEqual(JSON.parse(Buffer.concat(chunks).toString()), { sessionId: 'wrun_adapter' });
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('Vercel rewrites preserve nested stream paths and reconnect cursors', async () => {
+  const originalFetch = globalThis.fetch;
+  const req = new PassThrough();
+  req.method = 'GET';
+  req.url = '/api/eve?__eve_path=session%2Fwrun_adapter%2Fstream&startIndex=8';
+  req.headers = { host: 'workbench.example', 'x-forwarded-proto': 'https' };
+  const chunks = [];
+  const res = new Writable({ write(chunk, encoding, callback) { chunks.push(chunk); callback(); } });
+  let status;
+  res.writeHead = (value) => { status = value; res.headersSent = true; };
+  globalThis.fetch = async (target) => {
+    assert.equal(target.href, 'https://agent.example/eve/v1/session/wrun_adapter/stream?startIndex=8');
+    return new Response('{"type":"message.completed","data":{"message":"READY"}}\n', {
+      headers: { 'content-type': 'application/x-ndjson', 'x-eve-stream-version': '26' },
+    });
+  };
+  try {
+    req.end();
+    await serveEveRequest(req, res, { EVE_AGENT_URL: 'https://agent.example' });
+    await finished(res);
+    assert.equal(status, 200);
+    assert.equal(JSON.parse(Buffer.concat(chunks).toString()).data.message, 'READY');
+  } finally { globalThis.fetch = originalFetch; }
+});

@@ -45,7 +45,12 @@ responses still require the [backend setup](eve-integration.md).
 
 ## Verification status
 
-Frontend type checking, the production build, and 15 tests pass, including
+The separate [sandbox browser screen](browser-watch.md) opens beside the console
+when Eve starts browsing. Use **Watch browser** to reopen it, **Place in front**
+to reposition it, and **Hide browser** to stop watching. Its website image is
+read-only; direct touch/rays operate the panel controls.
+
+Frontend type checking, the production build, and 31 tests pass, including
 pagination coverage for long replies, long tokens, emoji, and paragraph breaks.
 The SDK's isolated UI-render command could not run because no managed runtime is
 available in this restricted execution environment. Physical interaction,

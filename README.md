@@ -29,6 +29,17 @@ credentials and a running backend are required for live responses; see the
 
 ## What's included today
 
+- **Watch Eve's browser** — desktop and anchored headset screens show actual
+  sandbox browser frames, recent actions, and task cancellation. Viewing is
+  read-only and requires the Vercel sandbox backend. See the
+  [browser viewing guide](docs/browser-watch.md).
+- **Live task visualizations with Apache ECharts** — open **Task board** in
+  the browser for progress charts and a paged map grouping tasks by status. In
+  the headset, choose **Task map** or **Progress** on Eve's console, and use
+  **Read task list** for full titles with text pagination. These views use the
+  existing Eve task-board events and show an empty state until a plan has tasks.
+  Chart code loads on demand, and redraws happen when task data or the selected
+  view changes. Map connections show status membership.
 - **Eve integration** — shared browser/XR conversations, streamed replies,
   session replay and reconnects, task-board results, approval options, and task
   cancellation. A Vercel Node Function keeps backend credentials server-side.

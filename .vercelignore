@@ -1,0 +1,12 @@
+node_modules
+dist
+.git
+.env*
+.eve
+.output
+.nitro
+.iwsdk
+.cache
+artifacts
+eve-backend
+game

@@ -76,9 +76,9 @@ Vercel OIDC and Eve's local development authenticator are also supported.
 
 The agent uses Vercel AI Gateway. On Vercel, Eve can use the project's OIDC
 credentials for model access. Configure any required Gateway account access in
-that Vercel project. The initial agent provides a conversation-scoped task-board
-tool; external services and actions have not been configured.
-Optional built-in agent tools are disabled for this initial task-board agent.
+that Vercel project. The agent provides a conversation-scoped task-board tool
+and an authored sandbox browser tool. Other external service integrations are
+not configured. Optional built-in shell tools remain disabled.
 Enable them deliberately in `agent/agent.ts` when adding broader capabilities.
 
 Local builds use the `just-bash` virtual filesystem, which supports this planning
@@ -87,6 +87,15 @@ Sandbox and prepare a VM snapshot. Build on the deployment target; do not copy a
 local `.output/` directory to Vercel.
 
 ## Deploy the frontend
+
+Production workspace: https://eve-workbench.vercel.app
+
+Production agent: https://eve-workbench-agent.vercel.app
+
+The projects are deployed directly to the Edesia Vercel account. Automatic
+deployments from GitHub require a GitHub login connection on that Vercel account.
+The workspace access code is stored locally as `WORKBENCH_ACCESS_KEY` in
+`.env.local`; deployment credentials remain server-side.
 
 Deploy the repository root as a separate Vercel project, using its existing Vite
 preset and `vercel.json`. Set these **server-only** environment variables:
@@ -107,7 +116,8 @@ If Vercel Deployment Protection is enabled on the backend, use an endpoint
 reachable by the frontend proxy, or configure the appropriate protection access
 separately. An Eve API key does not bypass Vercel's deployment protection.
 
-The root catch-all API function is `api/eve/[...path].mjs`. SPA fallback routing
+The root API function is `api/eve.mjs`. An explicit rewrite sends every
+`/api/eve/*` path to it, preserving nested session and stream routes. SPA fallback routing
 excludes `/api/`, so broken API routes return an API failure instead of an HTML
 page. Streams have a 270-second upstream timeout beneath the 300-second function
 limit; clients reconnect from the absolute event count.
@@ -125,6 +135,16 @@ limit; clients reconnect from the absolute event count.
   [Quest 3 controls](quest-3.md); Quest 3 uses head pointing rather than eye tracking.
 - Task-board state belongs to the Eve session and survives later turns. Starting
   a new conversation retires the previous session and starts a new board.
+- Assistant text appears as streamed deltas in both views. Each completed
+  `task_board` result refreshes the list, Progress chart, and Task map while the
+  turn is still running. Charts consume complete tool results, not partial tool
+  arguments. The backend instructions describe these controls to Claude.
+- Arbitrary generated panels and spoken audio are not connected. Claude cannot
+  select a panel for the user or observe which view is open.
+- **Watch Eve’s browser** on desktop and **Watch browser** in XR show the real
+  sandbox browser with a recent-action feed. This needs the Vercel sandbox
+  backend, not local just-bash. See [browser viewing](browser-watch.md) for setup,
+  frame delivery, controls, and live verification still needed.
 - Real-headset WebXR requires HTTPS. The starter also provides local XR
   emulation. It still controls XR mode and features through `iwsdk.config.json`.
 - The client explicitly supports the new agent's Eve stream versions 25 and 26;
@@ -133,9 +153,14 @@ limit; clients reconnect from the absolute event count.
 ## Verification
 
 On 2026-10-14, frontend and backend type checks, both production builds, and all
-12 connection tests passed. The tests cover stream deltas and UTF-8 boundaries,
+31 tests passed. The tests cover stream deltas and UTF-8 boundaries,
 reconnect cursors, task/approval projection, proxy credentials, access cookies,
-origin checks, and the Node HTTP adapter.
+origin checks, the Node HTTP adapter, chart rendering, native panel parsing,
+browser frame authentication/session isolation, viewer lifecycle, and tool results.
+An integration test holds a fixture stream open and verifies that text and
+task-chart data cross the proxy and reach client subscribers before completion.
+The updated backend also passed a fresh local build. These are local checks;
+the browser feature has not been deployed or verified against a live VM.
 
 Live model responses and physical-headset interactions have not been verified.
 This execution environment rejects local listening ports and blocks the SDK

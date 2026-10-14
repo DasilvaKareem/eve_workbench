@@ -1,0 +1,20 @@
+<style>
+  .browser { width: 500; flex-direction: column; padding-top: 10; padding-right: 10; padding-bottom: 10; padding-left: 10; gap: 6; background-color: #151d21; border-color: #60756a; border-width: 1; border-radius: 8; }
+  .title { color: #d6f29a; font-size: 18; height: 24; }
+  .status { color: #d4dfd6; font-size: 10; height: 30; }
+  .screen { width: 480; height: 270; }
+  .activity { color: #b6c7bd; font-size: 11; height: 48; line-height: 1.4; }
+  .row { flex-direction: row; gap: 8; }
+  .button { width: 154; height: 32; align-items: center; justify-content: center; background-color: #29352f; color: #e1efd7; font-size: 12; border-color: #60756a; border-width: 1; border-radius: 6; cursor: pointer; }
+</style>
+<div class="browser">
+  <div class="title">Eve browser - Watch only</div>
+  <div id="eve-browser-status" class="status">Ask Eve to open a website.</div>
+  <img id="eve-browser-screen" class="screen" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='1280'%20height='720'%3E%3Crect%20width='1280'%20height='720'%20fill='%23101918'/%3E%3C/svg%3E" />
+  <div id="eve-browser-activity" class="activity">Browser actions appear here as Eve works.</div>
+  <div class="row">
+    <button id="eve-browser-place" class="button">Place in front</button>
+    <button id="eve-browser-cancel" class="button">Cancel task</button>
+    <button id="eve-browser-hide" class="button">Hide browser</button>
+  </div>
+</div>

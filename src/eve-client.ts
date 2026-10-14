@@ -1,10 +1,12 @@
 export type Phase = 'connecting' | 'setup' | 'locked' | 'ready' | 'working' | 'waiting' | 'error';
 export interface Message { id: string; role: 'user' | 'assistant'; text: string; pending?: boolean }
 export interface InputRequest { id: string; title: string; options: { id: string; label: string }[] }
+export interface BrowserAction { id: string; tool: string; status: 'running' | 'completed' | 'failed' | 'cancelled' }
 export interface EveState {
   phase: Phase; sessionId: string | null; messages: Message[];
   activity: string; error: string | null; inputs: InputRequest[]; authRequired: boolean;
   tasks: { id: string; title: string; status: 'todo' | 'in_progress' | 'done' }[];
+  browserActions: BrowserAction[];
 }
 export interface EveEvent { type: string; data: Record<string, any>; meta?: { id?: string; at?: string } }
 
@@ -26,7 +28,7 @@ export class EveError extends Error {
 
 /** A single session store shared by the desktop UI and the XR console. */
 export class EveClient {
-  state: EveState = { phase: 'connecting', sessionId: null, messages: [], activity: 'Checking connection', error: null, inputs: [], authRequired: false, tasks: [] };
+  state: EveState = { phase: 'connecting', sessionId: null, messages: [], activity: 'Checking connection', error: null, inputs: [], authRequired: false, tasks: [], browserActions: [] };
   private listeners = new Set<(state: EveState) => void>();
   private streamController: AbortController | null = null;
   private requestController = new AbortController();
@@ -156,7 +158,7 @@ export class EveClient {
     this.streamController?.abort(); this.streamController = null;
     this.cursor = 0; this.seen.clear(); this.activeTurn = null; this.terminal = false;
     try { localStorage.removeItem(SESSION_KEY); } catch { /* Optional persistence. */ }
-    this.patch({ sessionId: null, messages: [], inputs: [], tasks: [], phase: 'ready', activity: 'A fresh conversation', error: null });
+    this.patch({ sessionId: null, messages: [], inputs: [], tasks: [], browserActions: [], phase: 'ready', activity: 'A fresh conversation', error: null });
   }
 
   private follow() {
@@ -243,9 +245,21 @@ export class EveClient {
         this.state.activity = 'Eve is responding'; this.state.error = null;
         break;
       }
-      case 'actions.requested': this.state.activity = 'Eve is using tools'; break;
+      case 'actions.requested': {
+        this.state.activity = 'Eve is using tools';
+        for (const action of Array.isArray(data.actions) ? data.actions : []) {
+          if (typeof action.toolName !== 'string' || !(action.toolName === 'browser' || action.toolName.startsWith('browser__')) || typeof action.callId !== 'string') continue;
+          const id = `${data.turnId}:${action.callId}`;
+          const tool = action.toolName === 'browser' ? String(action.input?.operation || 'browser').slice(0, 40) : action.toolName.slice(9).replaceAll('_', ' ');
+          if (!this.state.browserActions.some(item => item.id === id)) this.state.browserActions.push({ id, tool, status: 'running' });
+        }
+        this.state.browserActions = this.state.browserActions.slice(-30);
+        break;
+      }
       case 'action.result': {
         const result = data.result;
+        const action = this.state.browserActions.find(item => item.id === `${data.turnId}:${result?.callId}`);
+        if (action) action.status = data.status === 'completed' && !result?.isError ? 'completed' : data.status === 'cancelled' ? 'cancelled' : 'failed';
         if (data.status === 'completed' && result?.toolName === 'task_board' && Array.isArray(result.output?.tasks)) {
           this.state.tasks = result.output.tasks.filter((task: any) => typeof task.id === 'string'
             && typeof task.title === 'string' && ['todo', 'in_progress', 'done'].includes(task.status));
@@ -272,9 +286,13 @@ export class EveClient {
         Object.assign(this.state, { phase: 'waiting', activity: 'Service sign-in required', error: 'Complete the requested connection sign-in in your Eve backend before continuing.' }); break;
       case 'session.waiting':
         Object.assign(this.state, { phase: 'ready', activity: 'Ready for your next idea' }); break;
-      case 'turn.cancelled': this.state.activity = 'Task cancelled'; break;
+      case 'turn.cancelled':
+        this.state.activity = 'Task cancelled';
+        for (const action of this.state.browserActions) if (action.status === 'running') action.status = 'cancelled';
+        break;
       case 'turn.failed':
       case 'session.failed':
+        for (const action of this.state.browserActions) if (action.status === 'running') action.status = 'failed';
         this.state.error = String(data.message || data.error?.message || 'The agent could not finish this task.');
         this.state.phase = 'error'; this.state.activity = 'Task failed';
         if (event.type === 'session.failed') this.terminal = true;

@@ -15,6 +15,9 @@
   .heading { color: #d6f29a; font-size: 20; height: 24; font-weight: 700; }
   .status { color: #b6c7bd; font-size: 11; height: 16; }
   .response { color: #f3f3ee; font-size: 13; line-height: 1.35; height: 150; }
+  .content { flex-direction: column; }
+  .chart { width: 368; height: 180; }
+  .chart-summary { color: #b6c7bd; font-size: 10; height: 18; }
   .row { flex-direction: row; gap: 8; }
   .button {
     width: 116;
@@ -38,7 +41,18 @@
 <div class="console">
   <div class="heading">eve / workbench</div>
   <div id="eve-xr-status" class="status">Connecting to your agent</div>
-  <div id="eve-xr-response" class="response">Your conversation comes with you.</div>
+  <div class="row">
+    <button id="eve-xr-view-reply" class="button navigation">Reply</button>
+    <button id="eve-xr-view-map" class="button navigation">Task map</button>
+    <button id="eve-xr-view-progress" class="button navigation">Progress</button>
+  </div>
+  <div id="eve-xr-reply-view" class="content">
+    <div id="eve-xr-response" class="response">Your conversation comes with you.</div>
+  </div>
+  <div id="eve-xr-chart-view" class="content" style="display: none">
+    <img id="eve-xr-task-chart" class="chart" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='1104'%20height='540'%3E%3Crect%20width='1104'%20height='540'%20fill='%23151d21'/%3E%3C/svg%3E" />
+    <div id="eve-xr-chart-summary" class="chart-summary">Loading task chart...</div>
+  </div>
   <div class="row">
     <button id="eve-xr-previous" class="button navigation">Previous</button>
     <div id="eve-xr-page" class="page">1 / 1</div>
@@ -46,13 +60,16 @@
   </div>
   <div class="row">
     <button id="eve-xr-plan" class="button">Plan my work</button>
-    <button id="eve-xr-tasks" class="button">Show tasks</button>
+    <button id="eve-xr-tasks" class="button">Read task list</button>
     <button id="eve-xr-next" class="button">What's next?</button>
   </div>
   <div class="row">
     <button id="eve-xr-range" class="button utility"><span id="eve-xr-range-label">Bring closer</span></button>
     <button id="eve-xr-recenter" class="button utility">Place in front</button>
     <button id="eve-xr-aim" class="button utility"><span id="eve-xr-aim-label">Aim: Hands</span></button>
+  </div>
+  <div class="row">
+    <button id="eve-xr-browser" class="button wide">Watch browser</button>
   </div>
   <div class="row">
     <button id="eve-xr-cancel" class="button wide">Cancel task</button>

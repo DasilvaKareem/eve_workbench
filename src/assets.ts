@@ -27,6 +27,11 @@ const publicAssetUrl = (filePath: string): string =>
   `${import.meta.env.BASE_URL}${filePath.replace(/^\/+/u, '')}`;
 
 export default defineAssets({
+  'eve-browser': {
+    url: publicAssetUrl('ui/eve-browser.uikitml'),
+    type: AssetType.UIKitML,
+    name: 'Eve Sandbox Browser',
+  },
   'eve-console': {
     url: publicAssetUrl('ui/eve-console.uikitml'),
     type: AssetType.UIKitML,
