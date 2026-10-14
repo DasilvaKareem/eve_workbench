@@ -1,22 +1,31 @@
-# Talk or type
+# Native Quest keyboard and voice
 
-Open https://eve-workbench.vercel.app and unlock your workspace. The browser and
-WebXR use the same **Talk or type** draft.
+The prompt uses Meta Quest's system keyboard. There is no app-built keyboard
+and no app audio recording step in this UI.
 
-- **Type:** click the field. In XR this opens a keyboard inside the panel; a
-  physical keyboard also works. Choose **Done** to hide the keyboard.
-- **Talk:** tap the microphone (or **Talk** in XR), speak, then tap again to stop.
-  The transcript fills the same field. Edit it if needed, then choose **Send**.
-- Microphone permission is requested on first use. If the headset cannot show
-  its permission prompt while immersed, exit XR, tap the microphone in the
-  browser to allow it, stop that recording, and enter XR again.
+1. Open https://eve-workbench.vercel.app in Quest Browser, unlock, and enter XR.
+2. Tap **Talk or type** (or **Talk / type**) to focus its native HTML text field.
+3. Type using Quest's keyboard, or select the microphone on that keyboard for
+   Quest's native voice dictation when the device offers it.
+4. Dismiss the system keyboard, review the text, and choose **Send**.
 
-Audio uses GPT-4o mini Transcribe through Vercel AI Gateway. Sonnet 5.5 remains
-Eve's conversational model. Recordings stop after 45 seconds and are transcribed
-through the authenticated server. Transcribing does not send a chat message;
-**Send** sends the text. Leaving XR or losing focus stops an active recording.
+The web app cannot programmatically turn on the system keyboard's microphone.
+The keyboard handles its own microphone permission and voice availability.
+Showing it changes XR visibility to visible-blurred; the draft is preserved
+through that transition. Input, change, blur, and Send synchronize the DOM value,
+because native keyboard interaction does not necessarily emit keypress events.
 
-The authenticated production transcription endpoint has passed live WAV and
-WebM/Opus checks. Automated tests cover microphone cleanup, cancellation, upload
-limits and shared input. Physical Quest microphone and interaction testing still
-requires a headset.
+The focused field remains in the viewport so the page does not scroll offscreen
+on XR exit. A physical keyboard and the desktop composer share the same draft.
+Failed sends restore the draft. Retry reconnects; an ended conversation starts
+fresh. Normal server stream lease endings reconnect without exhausting a retry
+budget while the app is idle.
+
+Sonnet 5.5 is Eve's agent. A live authenticated request and the real browser
+prompt both received a response. A live workbench_panel call created a text panel.
+Physical Quest system-keyboard, OS microphone, and panel gesture verification
+still requires the device.
+
+Implementation follows [Meta's System Keyboard in WebXR guide](https://developers.meta.com/vr/documentation/web/webxr-keyboard/).
+The older authenticated server transcription endpoint remains available internally,
+but the native prompt does not record or upload audio to it.

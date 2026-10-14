@@ -2,11 +2,11 @@ import { createSystem, InputComponent, PokeInteractable, Quaternion, RayInteract
 import { eve } from './eve-client.ts';
 import { paginatePanelText } from './eve-panel-content.ts';
 import { eveVoice } from './eve-voice.ts';
-import { dictation } from './eve-dictation.ts';
+import { bindNativeInput } from './eve-native-input.ts';
 import { promptDraft } from './eve-prompt.ts';
 import { bindPanelGestures } from './eve-panel-gestures.ts';
 
-/** One prompt in XR. Native text input plus an in-world keyboard for headset browsers. */
+/** One prompt in XR. Quest system keyboard and dictation through a focused DOM text field. */
 export class EveConsoleSystem extends createSystem({}) {
   private panel: UIKitMLAsset | null = null;
   private pendingPlacement = false;
@@ -17,6 +17,10 @@ export class EveConsoleSystem extends createSystem({}) {
 
   init(): void {
     let disposed = false;
+    const xrInput = this.world.input.xr;
+    const previousGaze = xrInput.gazeEnabled;
+    xrInput.gazeEnabled = false;
+    this.cleanupFuncs.push(() => { xrInput.gazeEnabled = previousGaze; });
     this.cleanupFuncs.push(() => { disposed = true; });
     void this.world.assets.instantiate<UIKitMLAsset>('eve-console').then(panel => {
       if (disposed) { panel.dispose(); return; }
@@ -26,25 +30,16 @@ export class EveConsoleSystem extends createSystem({}) {
       this.panel = panel;
       panel.visible = false;
       const input = panel.requireElementById<UIKit.Textarea>('eve-xr-prompt');
-      const keyboard = panel.requireElementById('eve-xr-keyboard');
       const status = panel.requireElementById<UIKit.Text>('eve-xr-status');
       const reply = panel.requireElementById('eve-xr-reply');
       const response = panel.requireElementById<UIKit.Text>('eve-xr-response');
-      let typing = false, uppercase = false, page = 0, lastMessage = '';
+      let page = 0, lastMessage = '';
       let pages = [''];
       const ready = () => ['ready', 'waiting'].includes(eve.state.phase);
-      const busyVoice = () => ['preparing', 'recording', 'transcribing'].includes(dictation.state.phase);
-      const setTyping = (value: boolean) => {
-        typing = value;
-        keyboard.setProperties({ display: value ? 'flex' : 'none' });
-      };
+      const nativeInput = bindNativeInput(input.element, value => promptDraft.set(value));
       input.setProperties({ onValueChange: (value: string) => promptDraft.set(value) });
-      // A browser keyboard is not guaranteed in immersive mode. This opens a real
-      // ray/poke keyboard inside the same panel and also allows physical keyboards.
-      const onField = () => { if (ready() && !busyVoice()) setTyping(true); };
+      const onField = () => { if (ready()) nativeInput.open(); };
       input.addEventListener('click', onField);
-      input.element.maxLength = 12000;
-      input.element.setAttribute('aria-label', 'Talk or type');
       for (const eventName of ['keydown', 'keyup']) {
         const onKey = (raw: Event) => {
           const event = raw as KeyboardEvent;
@@ -73,8 +68,8 @@ export class EveConsoleSystem extends createSystem({}) {
         paint.push(refresh);
       };
       const showReply = () => {
-        const latest = [...eve.state.messages].reverse().find(message => message.role === 'assistant');
-        const text = eve.state.error || latest?.text || '';
+        const latest = eve.state.messages[eve.state.messages.length - 1];
+        const text = eve.state.error || (latest?.role === 'user' ? `You: ${latest.text}\n\n${eve.state.activity}` : latest?.text) || '';
         if (latest?.id !== lastMessage) { this.handle?.cancel(); lastMessage = latest?.id || ''; page = 0; }
         pages = paginatePanelText(text, 44, 7);
         page = Math.max(0, Math.min(page, pages.length - 1));
@@ -84,46 +79,26 @@ export class EveConsoleSystem extends createSystem({}) {
         panel.requireElementById<UIKit.Text>('eve-xr-page').setProperties({ text: `${page + 1} / ${pages.length}\nPinch + slide` });
       };
       const render = () => {
-        const voice = dictation.state;
-        input.setProperties({ disabled: !ready() || busyVoice() });
-        status.setProperties({ text: voice.error || (voice.phase === 'recording' ? 'Listening...'
-          : voice.phase === 'transcribing' ? 'Transcribing...'
-          : voice.phase === 'preparing' ? 'Allow microphone...'
-          : eve.state.phase === 'locked' ? 'Unlock in browser first' : eve.state.activity) });
-        panel.requireElementById<UIKit.Text>('eve-xr-mic-label').setProperties({ text: voice.phase === 'recording' ? 'Stop mic' : 'Talk' });
-        panel.requireElementById<UIKit.Text>('eve-xr-send-label').setProperties({ text: eve.state.phase === 'working' ? 'Stop' : 'Send' });
-        if (!ready() || busyVoice()) setTyping(false);
+        input.setProperties({ disabled: !ready() });
+        status.setProperties({ text: eve.state.phase === 'locked' ? 'Unlock in browser first' : eve.state.activity });
+        panel.requireElementById<UIKit.Text>('eve-xr-send-label').setProperties({ text: eve.state.phase === 'working' ? 'Stop' : eve.state.phase === 'error' ? 'Retry' : 'Send' });
         showReply();
         for (const refresh of paint) refresh();
       };
       const send = () => {
         if (eve.state.phase === 'working') { void eve.cancel(); return; }
+        if (eve.state.phase === 'error') { void eve.connect(); return; }
+        nativeInput.sync();
         const text = promptDraft.text.trim();
-        if (!ready() || busyVoice() || !text) return;
-        setTyping(false); input.blur(); promptDraft.set(''); dictation.cancel(); void eve.send(text);
+        if (!ready() || !text) return;
+        input.blur(); promptDraft.set('');
+        void eve.send(text).then(() => { if (eve.state.phase === 'error' && !promptDraft.text) promptDraft.set(text); });
       };
-      bind('eve-xr-send', send, () => eve.state.phase === 'working' || (ready() && !busyVoice() && Boolean(promptDraft.text.trim())));
-      bind('eve-xr-mic', () => {
-        setTyping(false); input.blur();
-        if (dictation.state.phase === 'recording') dictation.stop();
-        else { eveVoice.stop(); void dictation.start(); }
-      }, () => dictation.state.phase === 'recording' || (ready() && dictation.state.supported && !busyVoice()));
+      bind('eve-xr-send', send, () => ['working', 'error'].includes(eve.state.phase) || (ready() && Boolean(promptDraft.text.trim())));
+      bind('eve-xr-mic', onField, ready);
       bind('eve-xr-exit', () => { void this.world.exitXR(); });
       bind('eve-xr-previous', () => { page--; render(); }, () => page > 0);
       bind('eve-xr-next-page', () => { page++; render(); }, () => page < pages.length - 1);
-      const rows = ['1234567890', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm,.?'];
-      for (const [i, row] of rows.entries()) for (const [j, key] of Array.from(row).entries()) {
-        bind(`eve-key-${i}-${j}`, () => promptDraft.insert(uppercase ? key.toUpperCase() : key), () => ready() && typing);
-      }
-      bind('eve-key-space', () => promptDraft.insert(' '));
-      bind('eve-key-backspace', () => promptDraft.backspace());
-      bind('eve-key-done', () => { setTyping(false); input.blur(); });
-      bind('eve-key-shift', () => {
-        uppercase = !uppercase;
-        for (const [i, row] of rows.entries()) for (const [j, key] of Array.from(row).entries()) {
-          panel.requireElementById<UIKit.Text>(`eve-key-${i}-${j}`).setProperties({ text: uppercase ? key.toUpperCase() : key });
-        }
-      });
       const handle = bindPanelGestures({
         panel, handle: panel.requireElementById('eve-xr-handle'), hint: panel.requireElementById('eve-xr-gesture-hint'),
         minScale: .18, maxScale: .34,
@@ -136,15 +111,13 @@ export class EveConsoleSystem extends createSystem({}) {
       this.cleanupFuncs.push(() => handle.dispose());
       const stopDraft = promptDraft.subscribe(text => { input.setProperties({ value: text }); render(); });
       const stopState = eve.subscribe(render);
-      const stopVoice = dictation.subscribe(render);
       const stopVisibility = this.world.visibilityState.subscribe(value => {
         handle.cancel();
-        if (value === VisibilityState.NonImmersive) { panel.visible = false; setTyping(false); input.blur(); }
+        if (value === VisibilityState.NonImmersive) { panel.visible = false; nativeInput.sync(); input.blur(); }
         else if (value === VisibilityState.Visible && !panel.visible) this.pendingPlacement = true;
-        if (value !== VisibilityState.Visible && dictation.state.phase === 'recording') dictation.cancel();
       });
-      this.cleanupFuncs.push(stopDraft, stopState, stopVoice, stopVisibility, () => {
-        input.removeEventListener('click', onField); dictation.cancel(); this.panel = null; this.handle = null; entity.dispose();
+      this.cleanupFuncs.push(stopDraft, stopState, stopVisibility, () => {
+        input.removeEventListener('click', onField); nativeInput.dispose(); this.panel = null; this.handle = null; entity.dispose();
       });
     }).catch(error => console.error('Eve prompt could not load:', error));
   }

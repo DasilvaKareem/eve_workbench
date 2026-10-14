@@ -140,3 +140,56 @@ test('a dropped stream reconnects from its absolute cursor without repeating the
     assert.deepEqual(client.state.messages.map(x => x.text), ['Continue', 'One two']);
   } finally { stop(); client.dispose(); }
 });
+
+test('retry recovers an ended conversation instead of posting into a terminal stream', async () => {
+  const paths = [];
+  const client = new EveClient(async path => {
+    paths.push(path);
+    if (path.endsWith('/status')) return Response.json({ configured: true, authenticated: true });
+    if (path.endsWith('/health')) return Response.json({ ok: true, status: 'ready' });
+    assert.fail(`Unexpected request ${path}`);
+  });
+  try {
+    client.state.sessionId = 'wrun_ended';
+    client.applyEvent(event('session.completed', {}));
+    await client.connect();
+    assert.equal(client.state.phase, 'ready');
+    assert.equal(client.state.sessionId, null);
+    assert.equal(client.state.error, null);
+    assert.deepEqual(paths, ['/api/eve/status', '/api/eve/health']);
+  } finally { client.dispose(); }
+});
+
+test('sending into a restored session restarts a missing event stream', async () => {
+  const paths = [];
+  const client = new EveClient(async path => {
+    paths.push(path);
+    if (!path.includes('/stream?')) return Response.json({ status: 'accepted' });
+    return new Response(new ReadableStream({ start() {} }), { headers: { 'x-eve-stream-version': '26' } });
+  });
+  try {
+    client.state.sessionId = 'wrun_restored'; client.state.phase = 'ready';
+    await client.send('Continue from here');
+    assert.ok(paths.includes('/api/eve/session/wrun_restored/stream?startIndex=0'));
+  } finally { client.dispose(); }
+});
+
+test('normal server stream leases do not exhaust reconnect attempts while idle', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let streams = 0;
+  const client = new EveClient(async path => {
+    if (!path.includes('/stream?')) return Response.json({ sessionId: 'wrun_idle' });
+    const current = ++streams;
+    return new Response(new ReadableStream({ start(controller) {
+      if (current < 9) controller.close();
+      else controller.enqueue(new TextEncoder().encode(JSON.stringify(event('message.completed', { turnId: 'turn_1', stepIndex: 0, message: 'Still connected' })) + '\n'));
+    } }), { headers: { 'x-eve-stream-version': '26' } });
+  });
+  try {
+    client.state.phase = 'ready'; await client.send('Hello');
+    for (let i = 0; i < 10; i++) { await new Promise(resolve => setImmediate(resolve)); t.mock.timers.tick(1000); }
+    assert.equal(streams, 9);
+    assert.ok(client.state.messages.some(message => message.text === 'Still connected'));
+    assert.equal(client.state.error, null);
+  } finally { client.dispose(); t.mock.timers.reset(); }
+});

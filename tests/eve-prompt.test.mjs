@@ -7,8 +7,8 @@ import { eve } from '../src/eve-client.ts';
 // The real system wires these events; no duplicated keyboard implementation.
 function element() {
   const events = new Map(), properties = {};
-  return { properties, events, element: { setAttribute() {}, addEventListener() {}, removeEventListener() {} },
-    setProperties(next) { Object.assign(properties, next); }, blur() {},
+  return { properties, events, element: { style: {}, value: '', setAttribute() {}, addEventListener() {}, removeEventListener() {}, focus() { this.focused = true; }, blur() {} },
+    setProperties(next) { Object.assign(properties, next); if (typeof next.value === 'string') this.element.value = next.value; }, blur() {},
     addEventListener(name, fn) { if (!events.has(name)) events.set(name, new Set()); events.get(name).add(fn); },
     removeEventListener(name, fn) { events.get(name)?.delete(fn); },
     click() { for (const fn of events.get('click') || []) fn(); },
@@ -25,7 +25,7 @@ test('a shared prompt preserves browser edits, Unicode deletion, and bounded dra
   stop(); draft.set(''); assert.equal(seen.length, 5);
 });
 
-test('XR field opens a working keyboard, edits the same draft, sends once, and cleans up', async () => {
+test('XR field focuses Quest native input, reads native value on Send, and cleans up', async () => {
   const elements = new Map();
   const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
   const panel = { visible: false, requireElementById: get, dispose() {} };
@@ -36,6 +36,7 @@ test('XR field opens a working keyboard, edits the same draft, sends once, and c
   eve.state.phase = 'ready'; eve.state.messages = []; eve.state.error = null;
   eve.send = async text => { sent.push(text); };
   const system = { cleanupFuncs: cleanups, world: {
+    input: { xr: { gazeEnabled: true } },
     assets: { instantiate: async () => panel }, createTransformEntity: () => entity,
     visibilityState: { subscribe: fn => { fn('NonImmersive'); return () => {}; } },
     exitXR: async () => { exit = true; },
@@ -44,28 +45,23 @@ test('XR field opens a working keyboard, edits the same draft, sends once, and c
     promptDraft.set('');
     EveConsoleSystem.prototype.init.call(system);
     await new Promise(resolve => setImmediate(resolve));
+    assert.equal(system.world.input.xr.gazeEnabled, false, 'hand pointing stays primary');
     assert.equal(components.length, 2, 'ray and poke stay enabled on the UI root');
     assert.ok(get('eve-xr-handle').events.get('pointerdown').size > 0, 'the title captures manipulation');
     assert.equal(get('eve-xr-prompt').events.get('pointerdown')?.size || 0, 0, 'the editable field is separate from manipulation');
     get('eve-xr-prompt').click();
-    assert.equal(get('eve-xr-keyboard').properties.display, 'flex');
-    get('eve-key-1-5').click(); // y
-    get('eve-key-2-7').click(); // k
-    get('eve-key-backspace').click();
-    get('eve-key-space').click();
-    get('eve-key-shift').click();
-    get('eve-key-1-0').click(); // Q
-    assert.equal(promptDraft.text, 'y Q');
-    assert.equal(get('eve-xr-prompt').properties.value, 'y Q');
+    assert.equal(get('eve-xr-prompt').element.focused, true);
     get('eve-xr-prompt').properties.onValueChange('Typed on a physical keyboard');
     assert.equal(promptDraft.text, 'Typed on a physical keyboard');
+    get('eve-xr-prompt').element.value = 'Native dictation result';
     get('eve-xr-send').click(); get('eve-xr-send').click();
-    assert.deepEqual(sent, ['Typed on a physical keyboard']);
+    assert.deepEqual(sent, ['Native dictation result']);
     assert.equal(promptDraft.text, '');
-    assert.equal(get('eve-xr-keyboard').properties.display, 'none');
+    assert.equal(elements.has('eve-xr-keyboard'), false, 'no custom keyboard is loaded');
     get('eve-xr-exit').click(); assert.equal(exit, true);
     for (const cleanup of cleanups) cleanup();
+    assert.equal(system.world.input.xr.gazeEnabled, true, 'the previous input mode is restored on teardown');
     assert.equal(destroyed, true);
-    assert.equal(get('eve-key-1-0').events.get('click').size, 0);
+    assert.equal(get('eve-xr-prompt').events.get('click').size, 0);
   } finally { Object.assign(eve.state, state); eve.send = originalSend; promptDraft.set(''); }
 });

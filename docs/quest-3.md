@@ -1,24 +1,27 @@
-# The single XR prompt
+# Quest workspace
 
-Open https://eve-workbench.vercel.app in Quest Browser, unlock the workspace,
-and choose **Enter XR**. There is one **Talk or type** field, **Talk**, and **Send**.
+The initial view is one **Talk or type** prompt with Send. Tap the field to open
+Quest's native keyboard; use its microphone for native voice entry if available.
+Dismiss the keyboard and send the text. See [native input](voice-dictation.md).
+There is no custom in-world keyboard or menu of canned prompts.
 
-Tap the field to reveal its in-world keyboard. Point and press/release the
-controller trigger, point and pinch with hands, or poke the controls directly.
-A physical keyboard also writes into the field. Browser and XR share one draft.
-See [voice dictation](voice-dictation.md) for microphone behavior.
+Point and release the controller trigger, point and pinch with hands, or poke a
+control. Pinch/drag the title to move the prompt; use two pointers to resize.
+Right controller thumbstick click recalls the prompt to your current tracked
+position. It stays anchored afterward. Exit XR returns to the browser.
 
-Drag the title bar to move the panel. Hold it with two pointers to resize.
-Manipulation is attached only to the title; it does not capture the input field
-or its buttons. Click the right controller's thumbstick to place the panel in
-front of your current tracked position. It stays anchored after placement.
-**Exit XR** returns to the browser.
+Replies and sending/error status appear above the prompt. Long replies have
+Previous/Next controls. While Eve is working, Send becomes Stop. On a connection
+error, Retry reconnects. Ended conversations recover into a fresh session.
 
-Eve's reply appears above the field. Longer replies expose Previous/Next controls.
-While Eve is working, Send becomes Stop. The old task dashboard, voice settings,
-quick prompts, demo controls, and additional screens are absent from the main UI.
+Ask Eve, for example: **Create a panel with my project checklist.** A successful
+workbench_panel tool result opens the panel automatically in XR and in the
+browser. Drag its title to move it, use two pointers to resize, and Close to hide.
+Page controls and panel switching appear only when needed. Empty panels and the
+old task dashboard/menu do not appear in the initial workspace.
 
-Type checking, the real UIKitML parser, and automated interaction-wiring checks
-run locally. The environment blocks browser process startup and local server
-ports, so managed XR emulation is unavailable. Physical Quest interaction,
-resizing, microphone permissions, comfort, and frame rate remain unverified.
+Type checking, real UIKitML parsing, native input wiring, session recovery,
+stream reconnection, and panel rendering data are covered by automated checks.
+A live agent reply and real panel creation were verified. The local environment
+blocks managed browser processes/server ports, so physical Quest interaction,
+keyboard and OS dictation behavior, comfort, and frame rate remain unverified.

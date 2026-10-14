@@ -21,17 +21,34 @@ interface Options {
 /** SDK pointer capture and the installed handle library keep selection, drag, and resizing in one input pipeline. */
 export function bindPanelGestures(options: Options) {
   const { panel, handle, hint, navigation } = options;
-  const origin = new Vector3(), right = new Vector3(), up = new Vector3(), delta = new Vector3(), rotation = new Quaternion();
+  const origin = new Vector3(), right = new Vector3(), up = new Vector3(), delta = new Vector3(), anchor = new Vector3(), rotation = new Quaternion();
   const swipe = new PanelSwipe();
   let capturedSwipe = -1, message = '';
   const point = (event: GestureEvent) => event.pointOnFace || event.point;
   const valid = (event: GestureEvent) => options.isActive() && (event.button === undefined || event.button === 0)
     && Number.isFinite(point(event).x + point(event).y + point(event).z);
   const say = (text: string) => { if (text !== message) { message = text; hint.setProperties({ text }); } };
-  const idle = () => say('Pinch title to move - two hands to resize');
+  const idle = () => say('Thumb + index: pinch title to move / Two hands: resize');
   const handleOptions: HandleOptions<unknown> = {
     multitouch: true, translate: true, rotate: false,
     scale: { uniform: true, x: [options.minScale, options.maxScale], y: [options.minScale, options.maxScale], z: [options.minScale, options.maxScale] },
+    apply: (state, target) => {
+      const value = state.current;
+      if (!Number.isFinite(value.position.x + value.position.y + value.position.z + value.quaternion.x
+        + value.quaternion.y + value.quaternion.z + value.quaternion.w + value.scale.x)) return;
+      const size = Math.max(options.minScale, Math.min(options.maxScale, value.scale.x));
+      // Handle 6.6 skips per-axis constraints for uniform scale. Clamp here and
+      // preserve the two-pinched midpoint so reaching a size limit cannot push the panel away.
+      if (store.inputState.size === 2 && size !== value.scale.x && value.scale.x > 1e-6) {
+        anchor.set(0, 0, 0);
+        for (const data of store.inputState.values()) anchor.add(data.pointerWorldPoint);
+        anchor.multiplyScalar(.5);
+        if (target.parent) target.parent.worldToLocal(anchor);
+        value.position.sub(anchor).multiplyScalar(size / value.scale.x).add(anchor);
+      }
+      value.scale.setScalar(size);
+      target.position.copy(value.position); target.quaternion.copy(value.quaternion); target.scale.copy(value.scale);
+    },
     filter: event => {
       if (!valid(event) || store.inputState.size >= 2) return false;
       // Separate two intended pinches from coincident pointers or a tracking glitch.

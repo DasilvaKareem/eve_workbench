@@ -1,4 +1,5 @@
 import { CanvasTexture, createSystem, LinearFilter, PokeInteractable, Quaternion, RayInteractable, SRGBColorSpace, UIKitMLAsset, Vector3, VisibilityState, type UIKit } from '@iwsdk/core';
+import { bindPanelGestures } from './eve-panel-gestures.ts';
 import { eve } from './eve-client.js';
 import { generatedPanelPages, type GeneratedPage } from './eve-generated-content.js';
 import { onGeneratedPanelsVisibility, showGeneratedPanels } from './eve-generated-visibility.js';
@@ -9,6 +10,7 @@ export class EveGeneratedSystem extends createSystem({}) {
   private panel: UIKitMLAsset | null = null;
   private open = false;
   private pendingPlacement = false;
+  private handle: ReturnType<typeof bindPanelGestures> | null = null;
   private side = true;
   private eye = new Vector3();
   private forward = new Vector3();
@@ -66,6 +68,8 @@ export class EveGeneratedSystem extends createSystem({}) {
           if (surface) surface.update(item.chart); else void loadChart();
         }
         pageLabel.setProperties({ text: `${page + 1} / ${pages.length}` });
+        panel.requireElementById('eve-generated-pages').setProperties({ display: pages.length > 1 ? 'flex' : 'none' });
+        panel.requireElementById('eve-generated-switcher').setProperties({ display: eve.state.panels.length > 1 ? 'flex' : 'none' });
         panel.requireElementById('eve-generated-actions').setProperties({ display: selectedPanel?.actions.length ? 'flex' : 'none' });
         for (let index = 0; index < 3; index++) {
           const action = selectedPanel?.actions[index];
@@ -100,11 +104,13 @@ export class EveGeneratedSystem extends createSystem({}) {
       bind('eve-generated-next', () => { page++; render(); }, () => page < pages.length - 1);
       bind('eve-generated-panel-previous', () => selectPanel(-1), () => eve.state.panels.length > 1);
       bind('eve-generated-panel-next', () => selectPanel(1), () => eve.state.panels.length > 1);
-      bind('eve-generated-place', () => { this.side = false; this.pendingPlacement = true; });
       bind('eve-generated-hide', () => showGeneratedPanels(false));
       for (let index = 0; index < 3; index++) bind(`eve-generated-action-${index}`, () => {
         const action = current()?.actions[index]; if (action) void eve.send(action.prompt);
       }, () => Boolean(current()?.actions[index]) && canSend());
+      this.handle = bindPanelGestures({ panel, handle: title, hint: panel.requireElementById('eve-generated-hint'),
+        minScale: .16, maxScale: .4,
+        isActive: () => panel.visible && !this.pendingPlacement && this.world.visibilityState.peek() === VisibilityState.Visible });
       const stopState = eve.subscribe(state => {
         const next = JSON.stringify(state.panels);
         if (next !== key) {
@@ -124,16 +130,18 @@ export class EveGeneratedSystem extends createSystem({}) {
         this.open = open; syncVisibility(); render();
       });
       const stopVisibility = this.world.visibilityState.subscribe(value => {
+        this.handle?.cancel();
         if (value === VisibilityState.Visible && this.open) this.pendingPlacement = true;
         syncVisibility(); render();
       });
       this.cleanupFuncs.push(stopState, stopOpen, stopVisibility, () => {
-        this.panel = null; surface?.dispose(); image.setProperties({ src: undefined }); texture?.dispose(); entity.dispose();
+        this.handle?.dispose(); this.handle = null; this.panel = null; surface?.dispose(); image.setProperties({ src: undefined }); texture?.dispose(); entity.dispose();
       });
     }).catch(error => console.error('Generated panels could not load:', error));
   }
 
-  update() {
+  update(_delta: number, time: number) {
+    if (this.panel?.visible) this.handle?.update(time * 1000);
     if (!this.panel || !this.open || !this.pendingPlacement || this.world.visibilityState.peek() !== VisibilityState.Visible) return;
     const frame = this.xrManager.getFrame(), reference = this.xrManager.getReferenceSpace();
     if (!frame || !reference) return;

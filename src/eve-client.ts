@@ -82,6 +82,7 @@ export class EveClient {
       const health = await (await this.request('/health')).json();
       if (health.ok !== true || health.status !== 'ready') throw new Error('The Eve backend is not ready yet.');
       this.patch({ phase: 'ready', activity: 'Eve is ready' });
+      if (this.terminal) { await this.newConversation(); return; }
       if (!this.state.sessionId) {
         let saved: string | null = null;
         try { saved = localStorage.getItem(SESSION_KEY); } catch { /* Storage can be disabled. */ }
@@ -119,6 +120,7 @@ export class EveClient {
         this.cursor = 0; this.seen.clear(); this.terminal = false;
         this.follow();
       }
+      if (!this.streamController && !this.terminal) this.follow();
       this.patch({ activity: 'Eve is working' });
     } catch (error) {
       this.state.messages = this.state.messages.filter(item => item !== optimistic);
@@ -205,7 +207,7 @@ export class EveClient {
         try {
           while (!controller.signal.aborted && !this.terminal) {
             const { value, done } = await reader.read();
-            if (done) { buffer += decoder.decode(); if (buffer.trim()) consume(buffer); break; }
+            if (done) { buffer += decoder.decode(); if (buffer.trim()) consume(buffer); retries = 0; break; }
             buffer += decoder.decode(value, { stream: true });
             if (buffer.length > 2_000_000) throw new Error('The agent event exceeded the supported size.');
             let end;
