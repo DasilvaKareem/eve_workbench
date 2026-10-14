@@ -51,6 +51,13 @@ export function mountWorkbench(world: World) {
   const launch = find<HTMLButtonElement>('.eve-xr');
   let lastError: string | null = null;
   let lastInputs = '';
+  let resultAnchor: HTMLElement | undefined;
+  let lastUserId: string | undefined;
+  const revealResult = () => {
+    if (resultAnchor?.isConnected) messages.scrollTop += resultAnchor.getBoundingClientRect().top - messages.getBoundingClientRect().top;
+  };
+  // A result stays visible while Eve writes its follow-up; manual scrolling takes over.
+  for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) messages.addEventListener(event, () => { resultAnchor = undefined; });
 
 
   const render = (state: EveState) => {
@@ -71,6 +78,8 @@ export function mountWorkbench(world: World) {
     if (text !== lastError) { notice.textContent = text; lastError = text; }
     notice.hidden = !text;
     let nearBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 80;
+    const userId = state.messages.slice().reverse().find(message => message.role === 'user')?.id;
+    if (userId !== lastUserId) { resultAnchor = undefined; nearBottom = true; lastUserId = userId; }
     for (const [id, element] of transcript) {
       if (!state.messages.some(message => message.id === id)) { panelCards.get(id)?.dispose(); panelCards.delete(id); element.remove(); transcript.delete(id); }
     }
@@ -86,14 +95,15 @@ export function mountWorkbench(world: World) {
       if (message.panel) {
         const key = JSON.stringify(message.panel);
         if (panelCards.get(message.id)?.key !== key) {
-          nearBottom = true;
+          resultAnchor = item;
           panelCards.get(message.id)?.dispose(); content.replaceChildren();
-          const dispose = mountInlinePanel(content as HTMLElement, message.panel, () => { if (nearBottom) messages.scrollTop = messages.scrollHeight; });
+          const dispose = mountInlinePanel(content as HTMLElement, message.panel, () => { if (resultAnchor === item) revealResult(); });
           panelCards.set(message.id, { key, dispose });
         }
       } else if (content.textContent !== message.text) content.textContent = message.text;
     }
-    if (nearBottom) messages.scrollTop = messages.scrollHeight;
+    if (resultAnchor) revealResult();
+    else if (nearBottom) messages.scrollTop = messages.scrollHeight;
     const inputKey = JSON.stringify(state.inputs);
     if (inputKey !== lastInputs) {
       lastInputs = inputKey;

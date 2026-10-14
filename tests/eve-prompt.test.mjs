@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { PromptDraft, promptDraft } from '../src/eve-prompt.ts';
 import { EveConsoleSystem } from '../src/eve-console-system.ts';
 import { eve } from '../src/eve-client.ts';
+import { UIKit } from '@iwsdk/core';
 
 // The real system wires these events; no duplicated keyboard implementation.
 function element() {
@@ -27,7 +28,8 @@ test('a shared prompt preserves browser edits, Unicode deletion, and bounded dra
 
 test('XR field focuses Quest native input, reads native value on Send, and cleans up', async () => {
   const elements = new Map();
-  const get = id => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
+  const viewport = new UIKit.Container({ width: 336, height: 230, overflow: 'scroll' });
+  const get = id => { if (!elements.has(id)) elements.set(id, id === 'eve-xr-transcript' ? viewport : element()); return elements.get(id); };
   const panel = { visible: false, requireElementById: get, dispose() {} };
   const components = [], cleanups = [];
   let destroyed = false, exit = false, sent = [];
@@ -63,5 +65,5 @@ test('XR field focuses Quest native input, reads native value on Send, and clean
     assert.equal(system.world.input.xr.gazeEnabled, true, 'the previous input mode is restored on teardown');
     assert.equal(destroyed, true);
     assert.equal(get('eve-xr-prompt').events.get('click').size, 0);
-  } finally { Object.assign(eve.state, state); eve.send = originalSend; promptDraft.set(''); }
+  } finally { viewport.dispose(); Object.assign(eve.state, state); eve.send = originalSend; promptDraft.set(''); }
 });

@@ -8,13 +8,30 @@ export function mountSpatialChat(viewport: UIKit.Container) {
   const cards = new Map<string, { root: UIKit.Container; text?: UIKit.Text; key: string; dispose: () => void }>();
   let stickToBottom = true;
   let disposed = false;
+  let resultAnchor: string | undefined;
+  let lastUserId: string | undefined;
+  let settingScroll = false;
   const bottom = () => viewport.maxScrollPosition?.peek()[1] || 0;
+  const setScroll = (value: number) => {
+    if (!viewport.scrollPosition) return;
+    settingScroll = true;
+    try { viewport.scrollPosition.value = [0, Math.max(0, Math.min(bottom(), value))]; }
+    finally { settingScroll = false; }
+  };
   const scroll = (amount: number) => {
     if (!viewport.scrollPosition) return;
-    viewport.scrollPosition.value = [0, Math.max(0, Math.min(bottom(), viewport.scrollPosition.peek()[1] + amount))];
+    resultAnchor = undefined;
+    setScroll(viewport.scrollPosition.peek()[1] + amount);
     stickToBottom = bottom() - viewport.scrollPosition.peek()[1] < 12;
   };
-  const scrollEnd = () => { if (stickToBottom && viewport.scrollPosition) viewport.scrollPosition.value = [0, bottom()]; };
+  const followLayout = () => {
+    if (disposed) return;
+    const root = resultAnchor ? cards.get(resultAnchor)?.root : undefined;
+    if (root) {
+      const center = root.relativeCenter.peek(), size = root.size.peek(), viewportSize = viewport.size.peek();
+      if (center && size && viewportSize) setScroll(viewportSize[1] / 2 - center[1] - size[1] / 2);
+    } else if (stickToBottom) setScroll(bottom());
+  };
   const makeCard = (message: Message) => {
     const nodes: UIKit.Component[] = [];
     const root = new UIKit.Container({ flexDirection: 'column', flexShrink: 0, width: 316, gap: 6,
@@ -71,17 +88,23 @@ export function mountSpatialChat(viewport: UIKit.Container) {
       root.removeFromParent();
       for (const node of nodes.reverse()) node.dispose();
     };
+    stopButtons.push(root.relativeCenter.subscribe(followLayout), root.size.subscribe(followLayout));
     return { root, text: body, key: message.panel ? JSON.stringify(message.panel) : '', dispose };
   };
+  const stopScroll = viewport.scrollPosition?.subscribe(() => {
+    if (!settingScroll) { resultAnchor = undefined; stickToBottom = bottom() - (viewport.scrollPosition?.peek()[1] || 0) < 12; }
+  });
   const stopState = eve.subscribe(state => {
     if (viewport.scrollPosition) stickToBottom = bottom() - viewport.scrollPosition.peek()[1] < 12;
-    if (state.messages.some(message => message.panel && cards.get(message.id)?.key !== JSON.stringify(message.panel))) stickToBottom = true;
+    const userId = state.messages.slice().reverse().find(message => message.role === 'user')?.id;
+    if (userId !== lastUserId) { resultAnchor = undefined; stickToBottom = true; lastUserId = userId; }
     viewport.setProperties({ display: state.messages.length ? 'flex' : 'none' });
     const ids = new Set(state.messages.map(message => message.id));
     for (const [id, card] of cards) if (!ids.has(id)) { card.dispose(); cards.delete(id); }
     for (const message of state.messages) {
       let card = cards.get(message.id);
       const changed = message.panel && card?.key !== JSON.stringify(message.panel);
+      if (changed) resultAnchor = message.id;
       if (card && changed) { card.dispose(); cards.delete(message.id); card = undefined; }
       if (!card) { card = makeCard(message); cards.set(message.id, card); viewport.add(card.root); }
       else if (card.text) card.text.setProperties({ text: message.text });
@@ -91,8 +114,9 @@ export function mountSpatialChat(viewport: UIKit.Container) {
     if (order.some((root, index) => viewport.children[index] !== root)) {
       viewport.remove(...order); viewport.add(...order);
     }
-    scrollEnd();
+    followLayout();
   });
-  const stopSize = viewport.maxScrollPosition?.subscribe(() => { if (!disposed) scrollEnd(); });
-  return { scroll, dispose() { disposed = true; stopState(); stopSize?.(); for (const card of cards.values()) card.dispose(); cards.clear(); } };
+  const stopSize = viewport.maxScrollPosition.subscribe(followLayout);
+  const stopViewport = viewport.size.subscribe(followLayout);
+  return { scroll, dispose() { disposed = true; stopState(); stopSize(); stopViewport(); stopScroll?.(); for (const card of cards.values()) card.dispose(); cards.clear(); } };
 }
