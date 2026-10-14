@@ -5,7 +5,9 @@ import { panelBlockText } from './eve-generated-content.ts';
 import type { createGeneratedChartSurface } from './eve-task-chart-surface.js';
 
 /** The same chronological messages and result cards as the browser chat. */
-export function mountSpatialChat(viewport: UIKit.Container, select = (state: EveState): Message[] => state.messages, allowOpenWindow = true) {
+export function mountSpatialChat(viewport: UIKit.Container, select = (state: EveState): Message[] => [
+  ...state.messages, ...state.inputs.map(input => ({ id: `input:${input.id}`, role: 'assistant' as const, text: input.title, input })),
+], allowOpenWindow = true) {
   const cards = new Map<string, { root: UIKit.Container; text?: UIKit.Text; key: string; dispose: () => void }>();
   let stickToBottom = true;
   let disposed = false;
@@ -48,7 +50,15 @@ export function mountSpatialChat(viewport: UIKit.Container, select = (state: Eve
     let active = true;
     const charts: { texture: CanvasTexture; image: UIKit.Image<UIKit.ImageOutProperties<unknown>>; surface?: ReturnType<typeof createGeneratedChartSurface> }[] = [];
     const stopButtons: (() => void)[] = [];
-    if (!message.panel) body = text(root, message.text);
+    if (!message.panel) {
+      body = text(root, message.text);
+      for (const option of message.input?.options || []) {
+        const button = text(root, option.label, 11, '#d6f29a');
+        button.setProperties({ backgroundColor: '#304137', padding: 8, borderRadius: 6, cursor: 'pointer' });
+        const click = () => { if (eve.state.phase === 'waiting') void eve.answer(message.input!.id, option.id); };
+        button.addEventListener('click', click); stopButtons.push(() => button.removeEventListener('click', click));
+      }
+    }
     else {
       const panel = message.panel;
       text(root, panel.title, 14, '#d6f29a');
@@ -96,7 +106,7 @@ export function mountSpatialChat(viewport: UIKit.Container, select = (state: Eve
       for (const node of nodes.reverse()) node.dispose();
     };
     stopButtons.push(root.relativeCenter.subscribe(followLayout), root.size.subscribe(followLayout));
-    return { root, text: body, key: message.panel ? JSON.stringify(message.panel) : '', dispose };
+    return { root, text: body, key: message.panel || message.input ? JSON.stringify(message.panel || message.input) : '', dispose };
   };
   const stopScroll = viewport.scrollPosition?.subscribe(() => {
     if (!settingScroll) { resultAnchor = undefined; stickToBottom = bottom() - (viewport.scrollPosition?.peek()[1] || 0) < 12; }
@@ -111,7 +121,7 @@ export function mountSpatialChat(viewport: UIKit.Container, select = (state: Eve
     for (const [id, card] of cards) if (!ids.has(id)) { card.dispose(); cards.delete(id); }
     for (const message of messages) {
       let card = cards.get(message.id);
-      const changed = message.panel && card?.key !== JSON.stringify(message.panel);
+      const changed = (message.panel || message.input) && card?.key !== JSON.stringify(message.panel || message.input);
       if (changed) resultAnchor = message.id;
       if (card && changed) { card.dispose(); cards.delete(message.id); card = undefined; }
       if (!card) { card = makeCard(message); cards.set(message.id, card); viewport.add(card.root); }

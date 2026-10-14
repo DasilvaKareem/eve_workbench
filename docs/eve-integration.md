@@ -152,6 +152,20 @@ limit; clients reconnect from the absolute event count.
   closing a window preserves its inline chat card. Window controls use SDK ray,
   poke, and title-only move/resize gestures. A right-thumbstick press recenters
   all open XR windows. Positions are local and reset on reload or XR re-entry.
+- The **Eve integrations** window uses authenticated `/api/eve/integrations`
+  routes, with fixed provider ids and MCP URLs from the official Eve registry.
+  **Connect** starts Vercel Connect OAuth and creates/links its managed connector
+  only on user request. Consent links are rendered as browser handoffs; tokens,
+  verifiers, and raw provider errors are never sent to chat or the frontend.
+  Status is verified against Connect, not inferred from a returned sign-in URL.
+  `WORKBENCH_FRONTEND_URL` optionally sets the trusted OAuth return origin;
+  the default is `https://eve-workbench.vercel.app`. No additional API key is
+  required. Vercel OIDC must be available to the backend deployment.
+  A dynamic Eve connection resolver includes only connected apps on each turn.
+  Read-only tools run normally; writes and tools without read-only annotations
+  use Eve's real approval controls, including native headset buttons.
+  The current access-code gate represents one shared workspace, so connected
+  app grants are workspace-scoped. This does not implement individual user accounts.
 - **Voice on** enables browser/device speech synthesis for new assistant text.
   Sentences are queued before the turn finishes; final fragments flush at message
   completion. Voice off, task cancellation, new messages, and conversation resets

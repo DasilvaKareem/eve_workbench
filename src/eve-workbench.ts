@@ -23,7 +23,7 @@ export function mountWorkbench(world: World) {
   shell.innerHTML = `
     <header class="eve-topbar">
       <a class="eve-brand" href="/">eve</a>
-      <div class="eve-top-actions"><button class="eve-new-window eve-xr" type="button">${icon('plus')} New window</button><button class="eve-enter-xr eve-xr" type="button">${icon('headset')} Enter XR</button></div>
+      <div class="eve-top-actions"><button class="eve-integrations-button eve-xr" type="button">Integrations</button><button class="eve-new-window eve-xr" type="button">${icon('plus')} New window</button><button class="eve-enter-xr eve-xr" type="button">${icon('headset')} Enter XR</button></div>
     </header>
     <section class="eve-console" aria-label="Eve">
       <div class="eve-messages" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text"></div>
@@ -52,7 +52,8 @@ export function mountWorkbench(world: World) {
   const panelCards = new Map<string, { key: string; dispose: () => void }>();
   const launch = find<HTMLButtonElement>('.eve-enter-xr');
   const stopWindows = mountDesktopWindows();
-  const stopWindowCount = workspaceWindows.subscribe(() => { find<HTMLButtonElement>('.eve-new-window').disabled = workspaceWindows.entries.length >= 6; });
+  const stopWindowCount = workspaceWindows.subscribe(() => { find<HTMLButtonElement>('.eve-new-window').disabled = workspaceWindows.contentCount >= 6; });
+  find('.eve-integrations-button').addEventListener('click', () => workspaceWindows.openIntegrations());
   find('.eve-new-window').addEventListener('click', () => { workspaceWindows.create(); textarea.focus({ preventScroll: true }); });
   let lastError: string | null = null;
   let lastInputs = '';
@@ -156,5 +157,6 @@ export function mountWorkbench(world: World) {
   });
   if (!world.xrEnabled) { launch.disabled = true; launch.title = 'This browser does not currently offer an immersive XR session.'; }
   void eve.connect();
+  if (new URLSearchParams(window.location.search).has('integrations')) workspaceWindows.openIntegrations();
   return () => { unsubscribe(); for (const card of panelCards.values()) card.dispose(); stopDraft(); stopWindows(); stopWindowCount(); eveVoice.stop(); stopVisibility(); shell.remove(); };
 }

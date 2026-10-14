@@ -87,7 +87,8 @@ export class EveConsoleSystem extends createSystem({}) {
       bind('eve-xr-exit', () => { void this.world.exitXR(); });
       bind('eve-xr-previous', () => chat.scroll(-150));
       bind('eve-xr-next-page', () => chat.scroll(150));
-      bind('eve-xr-new-window', () => { workspaceWindows.create(); if (ready()) nativeInput.open(); }, () => workspaceWindows.entries.length < 6);
+      bind('eve-xr-new-window', () => { workspaceWindows.create(); if (ready()) nativeInput.open(); }, () => workspaceWindows.contentCount < 6);
+      bind('eve-xr-integrations', () => workspaceWindows.openIntegrations());
       this.cleanupFuncs.push(workspaceWindows.subscribe(render));
       const handle = bindPanelGestures({
         panel, handle: panel.requireElementById('eve-xr-handle'), hint: panel.requireElementById('eve-xr-gesture-hint'),

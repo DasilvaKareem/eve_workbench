@@ -12,6 +12,21 @@ async function cookie() {
   return response.headers.get('set-cookie').split(';')[0];
 }
 
+test('integration management uses the private access gate, fixed app routes, and same-origin writes', async () => {
+  const locked = await handleEveRequest(request('/integrations'), env, () => assert.fail('must authenticate first'));
+  assert.equal(locked.status, 401);
+  const access = await cookie();
+  for (const path of ['/integrations', '/integrations/notion/connect', '/integrations/notion/disconnect']) {
+    const response = await handleEveRequest(request(path, { method: path === '/integrations' ? 'GET' : 'POST', headers: { cookie: access, origin: 'https://workbench.example' }, ...(path === '/integrations' ? {} : { body: '{}' }) }), env,
+      async (url, options) => { assert.equal(url.href, `https://agent.example/workbench${path}`); assert.equal(options.headers.authorization, `Bearer ${env.EVE_API_KEY}`); return Response.json({ ok: true }); });
+    assert.equal(response.status, 200);
+  }
+  const foreign = await handleEveRequest(request('/integrations/notion/connect', { method: 'POST', body: '{}', headers: { cookie: access, origin: 'https://other.example' } }), env);
+  assert.equal(foreign.status, 403);
+  const unknown = await handleEveRequest(request('/integrations/arbitrary/connect', { method: 'POST', body: '{}', headers: { cookie: access } }), env);
+  assert.equal(unknown.status, 404);
+});
+
 test('browser frames use the same private access gate and a fixed backend route', async () => {
   const locked = await handleEveRequest(request('/session/wrun_test/browser/frame'), env, () => assert.fail('must authenticate first'));
   assert.equal(locked.status, 401);

@@ -1,7 +1,7 @@
 export type Phase = 'connecting' | 'setup' | 'locked' | 'ready' | 'working' | 'waiting' | 'error';
 import { parseWorkbenchPanels, type WorkbenchPanel } from '../shared/workbench-panels.ts';
 
-export interface Message { id: string; role: 'user' | 'assistant' | 'panel'; text: string; pending?: boolean; panel?: WorkbenchPanel }
+export interface Message { id: string; role: 'user' | 'assistant' | 'panel'; text: string; pending?: boolean; panel?: WorkbenchPanel; input?: InputRequest }
 export interface InputRequest { id: string; title: string; options: { id: string; label: string }[] }
 export interface BrowserAction { id: string; tool: string; status: 'running' | 'completed' | 'failed' | 'cancelled' }
 export interface EveState {

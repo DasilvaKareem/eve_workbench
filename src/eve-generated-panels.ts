@@ -50,7 +50,7 @@ export function mountInlinePanel(content: HTMLElement, panel: WorkbenchPanel, on
   content.append(actions, notice);
   const refresh = () => {
     const state = eve.state;
-    for (const button of actions.querySelectorAll<HTMLButtonElement>('button')) button.disabled = button.textContent === 'Open window' ? workspaceWindows.entries.length >= 6 && !workspaceWindows.entries.some(entry => entry.panel?.id === panel.id) : !['ready', 'waiting'].includes(state.phase);
+    for (const button of actions.querySelectorAll<HTMLButtonElement>('button')) button.disabled = button.textContent === 'Open window' ? workspaceWindows.contentCount >= 6 && !workspaceWindows.entries.some(entry => entry.panel?.id === panel.id) : !['ready', 'waiting'].includes(state.phase);
   };
   const stop = eve.subscribe(refresh), stopWindows = workspaceWindows.subscribe(refresh);
   if (charts.length) void import('./eve-task-chart-surface.js').then(({ createGeneratedChartSurface }) => {

@@ -10,6 +10,6 @@
 <div class="window">
   <div class="row"><div id="window-handle" class="handle"><div id="window-title" class="title">New window</div></div><button id="window-close" class="button">Close</button></div>
   <div id="window-content" class="content"></div>
-  <div class="row"><button id="window-older" class="button">Up</button><div class="hint">Ask Eve below to fill this window</div><button id="window-newer" class="button">Down</button></div>
+  <div class="row"><button id="window-older" class="button">Up</button><div id="window-context-hint" class="hint">Ask Eve below to fill this window</div><button id="window-newer" class="button">Down</button></div>
   <div id="window-hint" class="hint">Pinch title to move / Two hands to resize</div>
 </div>

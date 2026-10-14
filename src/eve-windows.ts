@@ -1,7 +1,7 @@
 import { eve, type EveClient, type EveEvent, type EveState } from './eve-client.ts';
 import { parseWorkbenchPanels, type WorkbenchPanel } from '../shared/workbench-panels.ts';
 
-export interface WorkspaceWindow { id: string; panel?: WorkbenchPanel }
+export interface WorkspaceWindow { id: string; panel?: WorkbenchPanel; kind?: 'integrations' }
 
 /** Window placement is local to the workspace; panel data belongs to the conversation. */
 export class WorkspaceWindows {
@@ -17,21 +17,26 @@ export class WorkspaceWindows {
   }
   subscribe(listener: () => void) { this.listeners.add(listener); listener(); return () => { this.listeners.delete(listener); }; }
   private emit() { for (const listener of this.listeners) listener(); }
+  get contentCount() { return this.entries.filter(entry => !entry.kind).length; }
+  openIntegrations() {
+    if (!this.entries.some(entry => entry.kind === 'integrations')) this.entries.push({ id: 'eve-integrations', kind: 'integrations' });
+    this.emit(); return 'eve-integrations';
+  }
   create() {
-    if (this.entries.length >= 6) return;
+    if (this.contentCount >= 6) return;
     const entry = { id: crypto.randomUUID() }; this.entries.push(entry); this.pendingId = entry.id; this.emit(); return entry.id;
   }
   close(id: string) {
     const index = this.entries.findIndex(entry => entry.id === id);
     if (index < 0) return;
-    this.entries.splice(index, 1); if (this.pendingId === id) this.pendingId = this.entries.find(entry => !entry.panel)?.id; this.emit();
+    this.entries.splice(index, 1); if (this.pendingId === id) this.pendingId = this.entries.find(entry => !entry.panel && !entry.kind)?.id; this.emit();
   }
   open(panelId: string) {
     const panel = this.client.state.panels.find(panel => panel.id === panelId); if (!panel) return;
     let entry = this.entries.find(entry => entry.panel?.id === panelId);
     if (!entry) entry = this.entries.find(entry => entry.id === this.pendingId);
-    if (!entry) { if (this.entries.length >= 6) return; entry = { id: crypto.randomUUID() }; this.entries.push(entry); }
-    entry.panel = panel; if (entry.id === this.pendingId) this.pendingId = this.entries.find(entry => !entry.panel)?.id; this.emit(); return entry.id;
+    if (!entry) { if (this.contentCount >= 6) return; entry = { id: crypto.randomUUID() }; this.entries.push(entry); }
+    entry.panel = panel; if (entry.id === this.pendingId) this.pendingId = this.entries.find(entry => !entry.panel && !entry.kind)?.id; this.emit(); return entry.id;
   }
   private sync(state: EveState) {
     if (this.sessionId && this.sessionId !== state.sessionId) { this.entries.length = 0; this.pendingId = undefined; }
@@ -45,6 +50,7 @@ export class WorkspaceWindows {
   }
   private event(event: EveEvent) {
     const result = event.data.result;
+    if (event.type === 'action.result' && event.data.status === 'completed' && !result?.isError && result?.toolName === 'workbench_integrations' && result.output?.openIntegrations === true) this.openIntegrations();
     if (event.type !== 'action.result' || event.data.status !== 'completed' || result?.isError || result?.toolName !== 'workbench_panel') return;
     const output = result.output;
     if (!parseWorkbenchPanels(output?.panels)) return;

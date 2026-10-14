@@ -45,6 +45,11 @@ credentials and a running backend are required for live responses; see the
   Up to six windows stay open together. Pinch a window's title to move it, use
   two hands on the title to resize, and **Close** to dismiss it. The chat keeps
   the original result. Desktop windows support title dragging and corner resizing.
+- **Eve integrations** — open **Integrations** in the browser or **Apps** in XR.
+  Choose **Add integration**, select Notion, Linear, Miro, or Sentry, and continue
+  sign-in in your browser. Connected apps are available to Eve on the next turn.
+  Connections are shared within this private workspace; credentials stay in
+  Vercel Connect. The panel shows real status and supports disconnecting apps.
 - **Watch Eve's browser** — desktop and anchored headset screens show actual
   sandbox browser frames, recent actions, and task cancellation. Viewing is
   read-only and requires the Vercel sandbox backend. See the

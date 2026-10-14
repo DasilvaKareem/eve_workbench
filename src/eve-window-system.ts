@@ -2,6 +2,7 @@ import { createSystem, InputComponent, PokeInteractable, Quaternion, RayInteract
 import { EveFloatingWindow } from './eve-window-component.ts';
 import { workspaceWindows } from './eve-windows.ts';
 import { mountSpatialChat } from './eve-spatial-chat.ts';
+import { mountSpatialIntegrations } from './eve-spatial-integrations.ts';
 import { bindPanelGestures } from './eve-panel-gestures.ts';
 
 type WindowView = {
@@ -39,7 +40,9 @@ export class EveWindowSystem extends createSystem({ windows: { required: [EveFlo
           entity.addComponent(RayInteractable); entity.addComponent(PokeInteractable);
           panel.visible = false;
           const viewport = panel.requireElementById<UIKit.Container>('window-content');
-          const chat = mountSpatialChat(viewport, () => {
+          const chat = entry.kind === 'integrations' ? mountSpatialIntegrations(viewport, url => {
+            void Promise.resolve(this.world.exitXR()).then(() => { window.location.assign(url); });
+          }) : mountSpatialChat(viewport, () => {
             const current = workspaceWindows.entries.find(item => item.id === entry.id);
             return current?.panel ? [{ id: `panel:${current.panel.id}`, role: 'panel', text: current.panel.title, panel: current.panel }]
               : [{ id: 'empty', role: 'assistant', text: 'Ask Eve in Talk or type what to put in this window: a graph, tasks, notes, or a table.' }];
@@ -57,7 +60,8 @@ export class EveWindowSystem extends createSystem({ windows: { required: [EveFlo
           const view: WindowView = { panel, handle, pendingPlacement: true, slot,
             refresh: () => {
               const current = workspaceWindows.entries.find(item => item.id === entry.id);
-              panel.requireElementById('window-title').setProperties({ text: current?.panel?.title || 'New window' }); chat.refresh();
+              panel.requireElementById('window-title').setProperties({ text: current?.kind === 'integrations' ? 'Eve integrations' : current?.panel?.title || 'New window' });
+              panel.requireElementById('window-context-hint').setProperties({ text: current?.kind === 'integrations' ? 'Choose an app to connect' : 'Ask Eve below to fill this window' }); chat.refresh();
             },
             dispose: () => { handle.dispose(); chat.dispose(); for (const stop of stops) stop(); },
           };
@@ -96,10 +100,11 @@ export class EveWindowSystem extends createSystem({ windows: { required: [EveFlo
       this.orientation.set(rotation.x, rotation.y, rotation.z, rotation.w);
       this.forward.set(0, 0, -1).applyQuaternion(this.orientation).transformDirection(this.player.matrixWorld); this.forward.y = 0;
       if (this.forward.lengthSq() < .001) this.forward.set(0, 0, -1); else this.forward.normalize();
-      const angle = (view.slot % 2 ? -1 : 1) * (Math.floor(view.slot / 2) + 1) * .73;
+      const isIntegrations = entity.getValue(EveFloatingWindow, 'windowId') === 'eve-integrations';
+      const angle = isIntegrations ? .9 : (view.slot % 2 ? -1 : 1) * (Math.floor(view.slot / 2) + 1) * .73;
       this.direction.set(this.forward.x * Math.cos(angle) + this.forward.z * Math.sin(angle), 0,
         this.forward.z * Math.cos(angle) - this.forward.x * Math.sin(angle));
-      view.panel.position.copy(this.eye).addScaledVector(this.direction, 1.3); view.panel.position.y -= .1;
+      view.panel.position.copy(this.eye).addScaledVector(this.direction, isIntegrations ? 1 : 1.3); view.panel.position.y -= .1;
       view.panel.rotation.set(0, Math.atan2(-this.direction.x, -this.direction.z), 0); view.panel.scale.setScalar(.24);
       view.panel.visible = true; view.pendingPlacement = false;
     }

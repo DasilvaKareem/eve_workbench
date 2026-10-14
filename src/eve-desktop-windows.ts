@@ -1,5 +1,6 @@
 import { mountInlinePanel } from './eve-generated-panels.ts';
 import { workspaceWindows } from './eve-windows.ts';
+import { mountIntegrationsPanel } from './eve-integrations-panel.ts';
 
 export function mountDesktopWindows() {
   const layer = document.createElement('div'); layer.className = 'eve-window-layer'; document.body.append(layer);
@@ -12,6 +13,8 @@ export function mountDesktopWindows() {
       let view = views.get(entry.id);
       if (!view) {
         const root = document.createElement('section'); root.className = 'eve-floating-window'; root.setAttribute('role', 'dialog');
+        root.style.zIndex = String(++front);
+        if (entry.kind === 'integrations') { root.classList.add('eve-integrations-window'); root.style.zIndex = '9999'; }
         root.style.left = `${24 + views.size * 32}px`; root.style.top = `${90 + views.size * 26}px`;
         const header = document.createElement('header'), title = document.createElement('span'), close = document.createElement('button'), content = document.createElement('div');
         header.className = 'eve-window-title'; close.type = 'button'; close.textContent = '×'; close.setAttribute('aria-label', 'Close window');
@@ -31,11 +34,12 @@ export function mountDesktopWindows() {
         const end = () => { drag = undefined; }; header.addEventListener('pointerup', end); header.addEventListener('pointercancel', end);
         view = { root, title, content, key: '', dispose: () => {} }; views.set(entry.id, view);
       }
-      view.title.textContent = entry.panel?.title || 'New window'; view.root.setAttribute('aria-label', view.title.textContent);
-      const key = JSON.stringify(entry.panel || null);
+      view.title.textContent = entry.kind === 'integrations' ? 'Eve integrations' : entry.panel?.title || 'New window'; view.root.setAttribute('aria-label', view.title.textContent);
+      const key = JSON.stringify(entry.kind || entry.panel || null);
       if (view.key !== key) {
         view.dispose(); view.content.replaceChildren(); view.key = key;
-        if (entry.panel) view.dispose = mountInlinePanel(view.content, entry.panel, undefined, false);
+        if (entry.kind === 'integrations') view.dispose = mountIntegrationsPanel(view.content);
+        else if (entry.panel) view.dispose = mountInlinePanel(view.content, entry.panel, undefined, false);
         else { view.content.textContent = 'Ask Eve in Talk or type what to put in this window — a graph, tasks, notes, or a table.'; view.dispose = () => {}; }
       }
     }
