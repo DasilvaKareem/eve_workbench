@@ -2,6 +2,7 @@
   .console { flex-direction: column; width: 360; padding-top: 12; padding-right: 12; padding-bottom: 12; padding-left: 12; background-color: #15201c; border-color: #829582; border-width: 1; border-radius: 14; gap: 8; }
   .row { flex-direction: row; gap: 8; align-items: center; justify-content: space-between; }
   .heading { color: #d6f29a; font-size: 14; height: 20; }
+  .handle { width: 240; height: 38; flex-direction: column; justify-content: center; padding-left: 6; padding-right: 6; background-color: #25332e; border-color: #60756a; border-width: 1; border-radius: 6; cursor: pointer; }
   .status { color: #bac9b9; font-size: 10; height: 16; }
   .reply { flex-direction: column; }
   .response { color: #f5f5ee; font-size: 12; line-height: 1.35; height: 112; }
@@ -9,15 +10,15 @@
   .button { height: 32; width: 82; align-items: center; justify-content: center; background-color: #2c3a30; color: #f5f5ee; border-color: #60755d; border-width: 1; border-radius: 8; font-size: 12; cursor: pointer; }
   .send { background-color: #d6f29a; color: #192519; }
   .small { width: 62; height: 25; font-size: 10; }
-  .page { color: #bac9b9; font-size: 10; }
+  .page { width: 176; height: 34; align-items: center; justify-content: center; color: #d6f29a; font-size: 9; background-color: #25332e; border-color: #60756a; border-width: 1; border-radius: 6; cursor: pointer; }
   .keyboard { flex-direction: column; gap: 5; }
   .keys { flex-direction: row; gap: 4; justify-content: center; }
   .key { width: 29; height: 30; font-size: 13; color: #f5f5ee; background-color: #304137; border-color: #60755d; border-width: 1; border-radius: 5; align-items: center; justify-content: center; cursor: pointer; }
   .space { width: 130; }
-  .hint { color: #a5b6a2; font-size: 8; height: 12; }
+  .hint { color: #a5b6a2; font-size: 8; height: 16; }
 </style>
 <div class="console">
-  <div class="row"><div id="eve-xr-handle" class="heading" style="width: 240; cursor: grab">Eve / drag to move</div><button id="eve-xr-exit" class="button small">Exit XR</button></div>
+  <div class="row"><div id="eve-xr-handle" class="handle"><div class="heading">Eve / pinch title to move</div></div><button id="eve-xr-exit" class="button small">Exit XR</button></div>
   <div id="eve-xr-reply" class="reply" style="display: none"><div id="eve-xr-response" class="response"></div></div>
   <div id="eve-xr-pages" class="row" style="display: none"><button id="eve-xr-previous" class="button small">Previous</button><div id="eve-xr-page" class="page"></div><button id="eve-xr-next-page" class="button small">Next</button></div>
   <textarea id="eve-xr-prompt" class="field" placeholder="Talk or type" />
@@ -29,5 +30,5 @@
     <div class="keys"><button id="eve-key-3-0" class="key">z</button><button id="eve-key-3-1" class="key">x</button><button id="eve-key-3-2" class="key">c</button><button id="eve-key-3-3" class="key">v</button><button id="eve-key-3-4" class="key">b</button><button id="eve-key-3-5" class="key">n</button><button id="eve-key-3-6" class="key">m</button><button id="eve-key-3-7" class="key">,</button><button id="eve-key-3-8" class="key">.</button><button id="eve-key-3-9" class="key">?</button></div>
     <div class="keys"><button id="eve-key-shift" class="button small">Shift</button><button id="eve-key-space" class="key space">Space</button><button id="eve-key-backspace" class="button small">Delete</button><button id="eve-key-done" class="button small">Done</button></div>
   </div>
-  <div class="hint">Tap to type / Drag title to move / Two pointers to resize</div>
+  <div id="eve-xr-gesture-hint" class="hint">Pinch title to move - two hands to resize</div>
 </div>

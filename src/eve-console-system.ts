@@ -1,16 +1,16 @@
-import { HandleStore } from '@pmndrs/handle';
 import { createSystem, InputComponent, PokeInteractable, Quaternion, RayInteractable, UIKitMLAsset, Vector3, VisibilityState, type UIKit } from '@iwsdk/core';
 import { eve } from './eve-client.ts';
 import { paginatePanelText } from './eve-panel-content.ts';
 import { eveVoice } from './eve-voice.ts';
 import { dictation } from './eve-dictation.ts';
 import { promptDraft } from './eve-prompt.ts';
+import { bindPanelGestures } from './eve-panel-gestures.ts';
 
 /** One prompt in XR. Native text input plus an in-world keyboard for headset browsers. */
 export class EveConsoleSystem extends createSystem({}) {
   private panel: UIKitMLAsset | null = null;
   private pendingPlacement = false;
-  private handle: HandleStore<unknown> | null = null;
+  private handle: ReturnType<typeof bindPanelGestures> | null = null;
   private eye = new Vector3();
   private forward = new Vector3();
   private orientation = new Quaternion();
@@ -23,15 +23,6 @@ export class EveConsoleSystem extends createSystem({}) {
       const entity = this.world.createTransformEntity(panel);
       entity.addComponent(RayInteractable);
       entity.addComponent(PokeInteractable);
-      // Bind manipulation only to the title handle. Putting a grabbable on the
-      // entire UI root denies ray input to its text fields and buttons.
-      const handle = new HandleStore(panel, () => ({
-        multitouch: true, translate: true, rotate: true,
-        scale: { uniform: true, x: [.16, .4], y: [.16, .4], z: [.16, .4] },
-      }));
-      this.handle = handle;
-      const unbindHandle = handle.bind(panel.requireElementById('eve-xr-handle'));
-      this.cleanupFuncs.push(unbindHandle);
       this.panel = panel;
       panel.visible = false;
       const input = panel.requireElementById<UIKit.Textarea>('eve-xr-prompt');
@@ -66,15 +57,15 @@ export class EveConsoleSystem extends createSystem({}) {
       const paint: (() => void)[] = [];
       const bind = (id: string, action: () => void, enabled = () => true) => {
         const button = panel.requireElementById(id);
-        let hover = false, pressed = false;
+        const hovering = new Set<number>(), pressing = new Set<number>();
         const refresh = () => button.setProperties({
-          backgroundColor: !enabled() ? '#263029' : pressed ? '#9db785' : hover ? '#4f6749' : id === 'eve-xr-send' ? '#d6f29a' : '#304137',
+          backgroundColor: !enabled() ? '#263029' : pressing.size ? '#9db785' : hovering.size ? '#4f6749' : id === 'eve-xr-send' ? '#d6f29a' : '#304137',
           color: !enabled() ? '#73816f' : id === 'eve-xr-send' ? '#192519' : '#f5f5ee',
         });
-        const enter = () => { hover = true; refresh(); };
-        const leave = () => { hover = false; pressed = false; refresh(); };
-        const down = () => { pressed = true; refresh(); };
-        const up = () => { pressed = false; refresh(); };
+        const enter = (event: { pointerId?: number }) => { hovering.add(event.pointerId ?? 0); refresh(); };
+        const leave = (event: { pointerId?: number }) => { hovering.delete(event.pointerId ?? 0); pressing.delete(event.pointerId ?? 0); refresh(); };
+        const down = (event: { pointerId?: number }) => { pressing.add(event.pointerId ?? 0); refresh(); };
+        const up = (event: { pointerId?: number }) => { pressing.delete(event.pointerId ?? 0); refresh(); };
         const click = () => { if (enabled()) action(); refresh(); };
         const events = [['pointerenter', enter], ['pointerleave', leave], ['pointerdown', down], ['pointerup', up], ['pointercancel', leave], ['click', click]] as const;
         for (const [name, listener] of events) button.addEventListener(name, listener);
@@ -84,13 +75,13 @@ export class EveConsoleSystem extends createSystem({}) {
       const showReply = () => {
         const latest = [...eve.state.messages].reverse().find(message => message.role === 'assistant');
         const text = eve.state.error || latest?.text || '';
-        if (latest?.id !== lastMessage) { lastMessage = latest?.id || ''; page = 0; }
+        if (latest?.id !== lastMessage) { this.handle?.cancel(); lastMessage = latest?.id || ''; page = 0; }
         pages = paginatePanelText(text, 44, 7);
         page = Math.max(0, Math.min(page, pages.length - 1));
         reply.setProperties({ display: text ? 'flex' : 'none' });
         response.setProperties({ text: pages[page] });
         panel.requireElementById('eve-xr-pages').setProperties({ display: pages.length > 1 ? 'flex' : 'none' });
-        panel.requireElementById<UIKit.Text>('eve-xr-page').setProperties({ text: `${page + 1} / ${pages.length}` });
+        panel.requireElementById<UIKit.Text>('eve-xr-page').setProperties({ text: `${page + 1} / ${pages.length}\nPinch + slide` });
       };
       const render = () => {
         const voice = dictation.state;
@@ -133,10 +124,21 @@ export class EveConsoleSystem extends createSystem({}) {
           panel.requireElementById<UIKit.Text>(`eve-key-${i}-${j}`).setProperties({ text: uppercase ? key.toUpperCase() : key });
         }
       });
+      const handle = bindPanelGestures({
+        panel, handle: panel.requireElementById('eve-xr-handle'), hint: panel.requireElementById('eve-xr-gesture-hint'),
+        minScale: .18, maxScale: .34,
+        isActive: () => panel.visible && !this.pendingPlacement && this.world.visibilityState.peek() === VisibilityState.Visible,
+        navigation: { surface: panel.requireElementById('eve-xr-page'),
+          previous: () => { page--; render(); }, next: () => { page++; render(); },
+          canPrevious: () => page > 0, canNext: () => page < pages.length - 1 },
+      });
+      this.handle = handle;
+      this.cleanupFuncs.push(() => handle.dispose());
       const stopDraft = promptDraft.subscribe(text => { input.setProperties({ value: text }); render(); });
       const stopState = eve.subscribe(render);
       const stopVoice = dictation.subscribe(render);
       const stopVisibility = this.world.visibilityState.subscribe(value => {
+        handle.cancel();
         if (value === VisibilityState.NonImmersive) { panel.visible = false; setTyping(false); input.blur(); }
         else if (value === VisibilityState.Visible && !panel.visible) this.pendingPlacement = true;
         if (value !== VisibilityState.Visible && dictation.state.phase === 'recording') dictation.cancel();
@@ -150,7 +152,7 @@ export class EveConsoleSystem extends createSystem({}) {
   update(_delta: number, time: number): void {
     if (!this.panel || this.world.visibilityState.peek() !== VisibilityState.Visible) return;
     this.handle?.update(time * 1000);
-    if (this.input.xr.gamepads.right?.getButtonDown(InputComponent.Thumbstick)) this.pendingPlacement = true;
+    if (this.input.xr.gamepads.right?.getButtonDown(InputComponent.Thumbstick)) { this.handle?.cancel(); this.pendingPlacement = true; }
     if (!this.pendingPlacement) return;
     const frame = this.xrManager.getFrame(), reference = this.xrManager.getReferenceSpace();
     if (!frame || !reference) return;

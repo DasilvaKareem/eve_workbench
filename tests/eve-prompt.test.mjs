@@ -45,7 +45,8 @@ test('XR field opens a working keyboard, edits the same draft, sends once, and c
     EveConsoleSystem.prototype.init.call(system);
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(components.length, 2, 'ray and poke stay enabled on the UI root');
-    assert.equal(get('eve-xr-handle').events.get('pointerdown').size, 1, 'only the title captures manipulation');
+    assert.ok(get('eve-xr-handle').events.get('pointerdown').size > 0, 'the title captures manipulation');
+    assert.equal(get('eve-xr-prompt').events.get('pointerdown')?.size || 0, 0, 'the editable field is separate from manipulation');
     get('eve-xr-prompt').click();
     assert.equal(get('eve-xr-keyboard').properties.display, 'flex');
     get('eve-key-1-5').click(); // y
