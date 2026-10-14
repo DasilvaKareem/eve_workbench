@@ -6,6 +6,7 @@ import { bindNativeInput } from './eve-native-input.ts';
 import { promptDraft } from './eve-prompt.ts';
 import { bindPanelGestures } from './eve-panel-gestures.ts';
 import { workspaceWindows } from './eve-windows.ts';
+import { EyeHeightController } from './eve-eye-height.ts';
 
 /** One prompt in XR. Quest system keyboard and dictation through a focused DOM text field. */
 export class EveConsoleSystem extends createSystem({}) {
@@ -15,6 +16,7 @@ export class EveConsoleSystem extends createSystem({}) {
   private eye = new Vector3();
   private forward = new Vector3();
   private orientation = new Quaternion();
+  private height: EyeHeightController | null = null;
 
   init(): void {
     let disposed = false;
@@ -32,6 +34,10 @@ export class EveConsoleSystem extends createSystem({}) {
       panel.visible = false;
       const input = panel.requireElementById<UIKit.Textarea>('eve-xr-prompt');
       const status = panel.requireElementById<UIKit.Text>('eve-xr-status');
+      const heightLabel = panel.requireElementById<UIKit.Text>('eve-xr-height');
+      const height = new EyeHeightController(this.xrManager, this.player, value => { heightLabel.setProperties({ text: `View height ${value.toFixed(2)} m` }); });
+      this.height = height;
+      this.cleanupFuncs.push(() => { height.dispose(); this.height = null; });
       const chat = mountSpatialChat(panel.requireElementById<UIKit.Container>('eve-xr-transcript'));
       this.cleanupFuncs.push(() => chat.dispose());
       const ready = () => ['ready', 'waiting'].includes(eve.state.phase);
@@ -89,6 +95,8 @@ export class EveConsoleSystem extends createSystem({}) {
       bind('eve-xr-next-page', () => chat.scroll(150));
       bind('eve-xr-new-window', () => { workspaceWindows.create(); if (ready()) nativeInput.open(); }, () => workspaceWindows.contentCount < 6);
       bind('eve-xr-integrations', () => workspaceWindows.openIntegrations());
+      bind('eve-xr-raise', () => { height.adjust(.15); this.pendingPlacement = true; });
+      bind('eve-xr-lower', () => { height.adjust(-.15); this.pendingPlacement = true; });
       this.cleanupFuncs.push(workspaceWindows.subscribe(render));
       const handle = bindPanelGestures({
         panel, handle: panel.requireElementById('eve-xr-handle'), hint: panel.requireElementById('eve-xr-gesture-hint'),
@@ -114,10 +122,11 @@ export class EveConsoleSystem extends createSystem({}) {
   update(_delta: number, time: number): void {
     if (!this.panel || this.world.visibilityState.peek() !== VisibilityState.Visible) return;
     this.handle?.update(time * 1000);
-    if (this.input.xr.gamepads.right?.getButtonDown(InputComponent.Thumbstick)) { this.handle?.cancel(); this.pendingPlacement = true; }
+    if (this.input.xr.gamepads.right?.getButtonDown(InputComponent.Thumbstick)) { this.handle?.cancel(); this.pendingPlacement = true; this.height?.recenter(); }
+    const frame = this.xrManager.getFrame(); if (!frame) return;
+    if (this.height?.update(frame)) this.pendingPlacement = true;
     if (!this.pendingPlacement) return;
-    const frame = this.xrManager.getFrame(), reference = this.xrManager.getReferenceSpace();
-    if (!frame || !reference) return;
+    const reference = this.xrManager.getReferenceSpace(); if (!reference) return;
     const pose = frame.getViewerPose(reference); if (!pose) return;
     this.player.updateWorldMatrix(true, false);
     const position = pose.transform.position, rotation = pose.transform.orientation;

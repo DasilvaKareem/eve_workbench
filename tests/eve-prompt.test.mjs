@@ -49,6 +49,9 @@ test('XR field focuses Quest native input, reads native value on Send, and clean
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(system.world.input.xr.gazeEnabled, false, 'hand pointing stays primary');
     assert.equal(components.length, 2, 'ray and poke stay enabled on the UI root');
+    assert.equal(get('eve-xr-height').properties.text, 'View height 1.75 m');
+    get('eve-xr-raise').click(); assert.equal(get('eve-xr-height').properties.text, 'View height 1.90 m');
+    get('eve-xr-lower').click(); assert.equal(get('eve-xr-height').properties.text, 'View height 1.75 m');
     assert.ok(get('eve-xr-handle').events.get('pointerdown').size > 0, 'the title captures manipulation');
     assert.equal(get('eve-xr-prompt').events.get('pointerdown')?.size || 0, 0, 'the editable field is separate from manipulation');
     get('eve-xr-prompt').click();
