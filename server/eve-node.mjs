@@ -35,7 +35,7 @@ export async function serveEveRequest(req, res, env = process.env) {
     const url = new URL(`${protocol}://${req.headers.host || 'localhost'}${req.url}`);
     const routedPath = url.searchParams.get('__eve_path');
     if (routedPath !== null) {
-      url.pathname = `/api/eve/${routedPath}`;
+      url.pathname = `/api/eve${routedPath ? `/${routedPath}` : ''}`;
       url.searchParams.delete('__eve_path');
     }
     const request = new Request(url, {

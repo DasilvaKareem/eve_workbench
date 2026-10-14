@@ -26,7 +26,7 @@
   ],
   "functions": { "api/eve.mjs": { "maxDuration": 300 } },
   "rewrites": [
-    { "source": "/api/eve/:path+", "destination": "/api/eve?__eve_path=:path+" },
+    { "source": "/api/eve/:path*", "destination": "/api/eve?__eve_path=:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
