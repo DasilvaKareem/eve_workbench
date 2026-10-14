@@ -153,16 +153,18 @@ limit; clients reconnect from the absolute event count.
 ## Verification
 
 On 2026-10-14, frontend and backend type checks, both production builds, and all
-31 tests passed. The tests cover stream deltas and UTF-8 boundaries,
+32 tests passed. The tests cover stream deltas and UTF-8 boundaries,
 reconnect cursors, task/approval projection, proxy credentials, access cookies,
 origin checks, the Node HTTP adapter, chart rendering, native panel parsing,
 browser frame authentication/session isolation, viewer lifecycle, and tool results.
 An integration test holds a fixture stream open and verifies that text and
 task-chart data cross the proxy and reach client subscribers before completion.
-The updated backend also passed a fresh local build. These are local checks;
-the browser feature has not been deployed or verified against a live VM.
+The frontend and backend are deployed to the production URLs above. Backend
+health, workspace authentication, model configuration, and a live Sonnet 5.5
+reply have been verified. The browser viewer is deployed, but its runtime has
+not been verified against a live VM.
 
-Live model responses and physical-headset interactions have not been verified.
+Physical-headset interactions have not been verified.
 This execution environment rejects local listening ports and blocks the SDK
 managed browser's process-identity check, so authoritative spatial rendering
 remains to be checked outside that restriction.
